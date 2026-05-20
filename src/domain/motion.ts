@@ -44,8 +44,20 @@ export function getElapsedMs(state: SessionState, nowMs: number): number {
   return Math.max(0, state.elapsedBeforePauseMs);
 }
 
+export function getMotionElapsedMs(state: SessionState, nowMs: number): number {
+  const hasMotionClock = typeof state.motionElapsedBeforePauseMs === 'number';
+  const elapsedBeforePauseMs = hasMotionClock ? state.motionElapsedBeforePauseMs ?? 0 : state.elapsedBeforePauseMs;
+  const startedAtMs = hasMotionClock ? state.motionStartedAtMs ?? null : state.startedAtMs;
+
+  if (state.status === 'running' && startedAtMs !== null) {
+    return Math.max(0, elapsedBeforePauseMs + nowMs - startedAtMs);
+  }
+
+  return Math.max(0, elapsedBeforePauseMs);
+}
+
 export function getMotionSnapshot(state: SessionState, nowMs: number): MotionSnapshot {
-  const elapsedMs = getElapsedMs(state, nowMs);
+  const elapsedMs = getMotionElapsedMs(state, nowMs);
   const cycleMs = cycleMsFromSpeed(state.visual.speed);
   const phase = (elapsedMs / cycleMs) * Math.PI * 2;
   const halfCycleIndex = Math.floor((phase + Math.PI / 2) / Math.PI);
@@ -80,6 +92,7 @@ export function getStimulusPosition(
   const ampY = Math.max(8, safeHeight / 2 - padding);
   const cycleMs = cycleMsFromSpeed(visual.speed);
   const phase = (elapsedMs / cycleMs) * Math.PI * 2;
+  const glide = getLinearGlide(elapsedMs, cycleMs);
   const centerX = safeWidth / 2;
   const centerY = verticalCenterForPosition(visual.verticalPosition, safeHeight);
 
@@ -87,7 +100,7 @@ export function getStimulusPosition(
 
   if (direction === 'horizontal') {
     return {
-      x: centerX + ampX * Math.sin(phase),
+      x: centerX + ampX * glide,
       y: centerY,
     };
   }
@@ -95,18 +108,29 @@ export function getStimulusPosition(
   if (direction === 'vertical') {
     return {
       x: centerX,
-      y: safeHeight / 2 + ampY * Math.sin(phase),
+      y: safeHeight / 2 + ampY * glide,
     };
   }
 
   if (direction === 'diagonal') {
     return {
-      x: centerX + ampX * Math.sin(phase),
-      y: safeHeight / 2 + ampY * Math.sin(phase),
+      x: centerX + ampX * glide,
+      y: safeHeight / 2 + ampY * glide,
     };
   }
 
   return getInfinityPosition(direction, phase, centerX, safeHeight / 2, ampX, ampY);
+}
+
+function getLinearGlide(elapsedMs: number, cycleMs: number): number {
+  const rawProgress = elapsedMs / cycleMs + 0.25;
+  const progress = rawProgress - Math.floor(rawProgress);
+
+  if (progress < 0.5) {
+    return progress * 4 - 1;
+  }
+
+  return 3 - progress * 4;
 }
 
 function getInfinityPosition(
@@ -140,11 +164,15 @@ function verticalCenterForPosition(position: VisualSettings['verticalPosition'],
 }
 
 export function startPlayback(state: SessionState, serverStartMs: number): SessionState {
+  const motionElapsedBeforePauseMs = state.motionElapsedBeforePauseMs ?? state.elapsedBeforePauseMs;
+
   return {
     ...state,
     version: state.version + 1,
     status: 'running',
     startedAtMs: serverStartMs,
+    motionStartedAtMs: serverStartMs,
+    motionElapsedBeforePauseMs,
     pausedAtMs: null,
   };
 }
@@ -155,30 +183,40 @@ export function pausePlayback(state: SessionState, serverPauseMs: number): Sessi
     version: state.version + 1,
     status: 'paused',
     elapsedBeforePauseMs: getElapsedMs(state, serverPauseMs),
+    motionElapsedBeforePauseMs: getMotionElapsedMs(state, serverPauseMs),
+    motionStartedAtMs: null,
     pausedAtMs: serverPauseMs,
     startedAtMs: null,
   };
 }
 
 export function resumePlayback(state: SessionState, serverResumeMs: number): SessionState {
+  const motionElapsedBeforePauseMs = state.motionElapsedBeforePauseMs ?? state.elapsedBeforePauseMs;
+
   return {
     ...state,
     version: state.version + 1,
     status: 'running',
     startedAtMs: serverResumeMs,
+    motionStartedAtMs: serverResumeMs,
+    motionElapsedBeforePauseMs,
     pausedAtMs: null,
   };
 }
 
 export function stopPlayback(state: SessionState, serverStopMs: number): SessionState {
   const elapsed = getElapsedMs(state, serverStopMs);
+  const motionElapsed = getMotionElapsedMs(state, serverStopMs);
+
   return {
     ...state,
     version: state.version + 1,
     status: 'stopped',
     startedAtMs: null,
+    motionStartedAtMs: null,
     pausedAtMs: null,
     elapsedBeforePauseMs: elapsed,
+    motionElapsedBeforePauseMs: motionElapsed,
     setsCompleted: elapsed > 0 ? state.setsCompleted + 1 : state.setsCompleted,
   };
 }
@@ -191,7 +229,30 @@ export function resetPlaybackCounters(state: SessionState): SessionState {
     startedAtMs: null,
     pausedAtMs: null,
     elapsedBeforePauseMs: 0,
+    motionStartedAtMs: null,
+    motionElapsedBeforePauseMs: 0,
     setsCompleted: 0,
+  };
+}
+
+export function retimeMotionForVisualChange(state: SessionState, nextVisual: VisualSettings, nowMs: number): SessionState {
+  if (state.visual.speed === nextVisual.speed) {
+    return {
+      ...state,
+      visual: nextVisual,
+    };
+  }
+
+  const currentMotionElapsedMs = getMotionElapsedMs(state, nowMs);
+  const currentCycleMs = cycleMsFromSpeed(state.visual.speed);
+  const nextCycleMs = cycleMsFromSpeed(nextVisual.speed);
+  const nextMotionElapsedMs = currentMotionElapsedMs * (nextCycleMs / currentCycleMs);
+
+  return {
+    ...state,
+    visual: nextVisual,
+    motionStartedAtMs: state.status === 'running' ? nowMs : null,
+    motionElapsedBeforePauseMs: nextMotionElapsedMs,
   };
 }
 

@@ -37,6 +37,10 @@ export interface SessionState {
   pausedAtMs: number | null;
   /** Accumulated elapsed running time before the current running segment. */
   elapsedBeforePauseMs: number;
+  /** Server-clock timestamp used as the origin for the current visual/audio/tactile motion segment. */
+  motionStartedAtMs?: number | null;
+  /** Accumulated motion time before the current running segment. May differ from session time after speed changes. */
+  motionElapsedBeforePauseMs?: number;
   setsCompleted: number;
   visual: VisualSettings;
   audio: AudioSettings;

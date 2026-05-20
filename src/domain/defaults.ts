@@ -6,6 +6,8 @@ export const DEFAULT_SESSION_STATE: SessionState = {
   startedAtMs: null,
   pausedAtMs: null,
   elapsedBeforePauseMs: 0,
+  motionStartedAtMs: null,
+  motionElapsedBeforePauseMs: 0,
   setsCompleted: 0,
   visual: {
     enabled: true,

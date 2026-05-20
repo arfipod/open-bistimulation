@@ -158,6 +158,8 @@ const fallbackState: SessionState = {
   startedAtMs: null,
   pausedAtMs: null,
   elapsedBeforePauseMs: 0,
+  motionStartedAtMs: null,
+  motionElapsedBeforePauseMs: 0,
   setsCompleted: 0,
   visual: {
     enabled: false,

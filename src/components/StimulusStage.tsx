@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { getElapsedMs, getServerNowMs, getStimulusPosition } from '../domain/motion';
+import { getMotionElapsedMs, getServerNowMs, getStimulusPosition } from '../domain/motion';
 import type { SessionState } from '../domain/sessionTypes';
 
 interface StimulusStageProps {
@@ -24,7 +24,7 @@ export function StimulusStage({ state, serverTimeOffsetMs, className = '', label
       if (stage && dot) {
         const rect = stage.getBoundingClientRect();
         const nowMs = getServerNowMs(serverTimeOffsetMs);
-        const elapsedMs = getElapsedMs(state, nowMs);
+        const elapsedMs = getMotionElapsedMs(state, nowMs);
         const position = getStimulusPosition(state.visual, elapsedMs, rect.width, rect.height);
         const dotSize = state.visual.dotSize;
         dot.style.width = `${dotSize}px`;

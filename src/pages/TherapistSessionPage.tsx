@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { SessionBroadcastMessage, SessionPreferences, SessionState, TactileDeviceStatus, TactileSide } from '../domain/sessionTypes';
-import { getServerNowMs, pausePlayback, resetPlaybackCounters, resumePlayback, startPlayback, stopPlayback } from '../domain/motion';
+import { getServerNowMs, pausePlayback, resetPlaybackCounters, resumePlayback, retimeMotionForVisualChange, startPlayback, stopPlayback } from '../domain/motion';
 import { endBlsSession, getBlsSession, getServerTimeMs, saveTherapistPreferences, saveTherapistState } from '../lib/sessionApi';
 import { saveLocalPreferences } from '../lib/localStorage';
 import { clientUrl } from '../lib/url';
@@ -255,7 +255,10 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
       <div className="therapist-grid">
         <div className="left-column">
           <InviteClient sessionId={sessionId} clientToken={clientToken} />
-          <VisualPanel visual={state.visual} onChange={(visual) => patchState((current) => ({ ...current, visual }))} />
+          <VisualPanel
+            visual={state.visual}
+            onChange={(visual) => patchState((current) => retimeMotionForVisualChange(current, visual, getServerNowMs(clock.offsetMs)))}
+          />
           <SessionControls
             state={state}
             serverTimeOffsetMs={clock.offsetMs}
@@ -298,6 +301,8 @@ const undefinedState: SessionState = {
   startedAtMs: null,
   pausedAtMs: null,
   elapsedBeforePauseMs: 0,
+  motionStartedAtMs: null,
+  motionElapsedBeforePauseMs: 0,
   setsCompleted: 0,
   visual: {
     enabled: false,
