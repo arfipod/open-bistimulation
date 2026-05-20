@@ -73,7 +73,7 @@ returns bigint
 language sql
 volatile
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
   select floor(extract(epoch from clock_timestamp()) * 1000)::bigint;
 $$;
@@ -93,7 +93,7 @@ returns table (
 )
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_id uuid := gen_random_uuid();
@@ -127,7 +127,7 @@ returns table (
 )
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   return query
@@ -156,7 +156,7 @@ create or replace function public.therapist_save_state(
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   update public.sessions s
@@ -178,7 +178,7 @@ create or replace function public.therapist_save_preferences(
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   update public.sessions s
@@ -199,7 +199,7 @@ create or replace function public.end_bls_session(
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   update public.sessions s
@@ -223,7 +223,7 @@ create or replace function public.upsert_tactile_device(
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_allowed boolean;

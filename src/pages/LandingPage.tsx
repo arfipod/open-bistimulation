@@ -47,7 +47,7 @@ export function LandingPage() {
         {!isSupabaseConfigured ? (
           <div className="warning-box">
             Supabase environment variables are missing. Copy <code>.env.example</code> to <code>.env.local</code> and fill in
-            <code> VITE_SUPABASE_URL</code> and <code> VITE_SUPABASE_ANON_KEY</code>.
+            <code> SUPABASE_URL</code> and <code> SUPABASE_ANON_KEY</code>.
           </div>
         ) : null}
 
