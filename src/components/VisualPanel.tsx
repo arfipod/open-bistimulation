@@ -92,7 +92,7 @@ export function VisualPanel({ visual, onChange }: VisualPanelProps) {
       </div>
 
       <div className="field-group">
-        <label>Dirección</label>
+        <label>Direction</label>
         <div className="segmented-grid">
           {directions.map((direction) => (
             <button
@@ -108,7 +108,7 @@ export function VisualPanel({ visual, onChange }: VisualPanelProps) {
       </div>
 
       <div className="field-group">
-        <label>Posición vertical</label>
+        <label>Vertical position</label>
         <div className="segmented-grid three">
           {positions.map((position) => (
             <button
@@ -124,7 +124,7 @@ export function VisualPanel({ visual, onChange }: VisualPanelProps) {
       </div>
 
       <div className="field-group">
-        <label htmlFor="dot-size">Tamaño: {visual.dotSize}px</label>
+        <label htmlFor="dot-size">Size: {visual.dotSize}px</label>
         <input
           id="dot-size"
           type="range"

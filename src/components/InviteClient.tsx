@@ -20,7 +20,7 @@ export function InviteClient({ sessionId, clientToken }: InviteClientProps) {
     <div className="invite-box">
       <div>
         <span className="eyebrow">Cliente</span>
-        <strong>Enlace de invitación</strong>
+        <strong>Invitation link</strong>
         <code>{url}</code>
       </div>
       <button className="secondary-button" type="button" onClick={handleCopy}>

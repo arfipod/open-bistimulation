@@ -16,7 +16,7 @@ export function AuditoryPanel({ audio, onChange }: AuditoryPanelProps) {
   return (
     <section className="control-panel">
       <header className="panel-header">
-        <h2>Auditivo</h2>
+        <h2>Auditory</h2>
         <label className="switch">
           <input
             type="checkbox"
@@ -28,7 +28,7 @@ export function AuditoryPanel({ audio, onChange }: AuditoryPanelProps) {
       </header>
 
       <div className="field-group">
-        <label>Sonido</label>
+        <label>Sound</label>
         <div className="segmented-grid">
           {sounds.map((sound) => (
             <button
@@ -62,7 +62,7 @@ export function AuditoryPanel({ audio, onChange }: AuditoryPanelProps) {
           checked={audio.therapistMuted}
           onChange={(event) => onChange({ ...audio, therapistMuted: event.target.checked })}
         />
-        Silenciar para terapeuta
+        Mute for therapist
       </label>
     </section>
   );

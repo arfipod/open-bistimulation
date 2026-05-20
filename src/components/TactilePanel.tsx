@@ -12,7 +12,7 @@ export function TactilePanel({ tactile, leftDevice, rightDevice, onChange }: Tac
   return (
     <section className="control-panel">
       <header className="panel-header">
-        <h2>Táctil</h2>
+        <h2>Tactile</h2>
         <label className="switch">
           <input
             type="checkbox"
@@ -24,12 +24,12 @@ export function TactilePanel({ tactile, leftDevice, rightDevice, onChange }: Tac
       </header>
 
       <div className="device-status-grid">
-        <ConnectionBadge connected={leftDevice.connected} label={`Móvil izquierdo${leftDevice.unsupported ? ' sin vibración' : ''}`} />
-        <ConnectionBadge connected={rightDevice.connected} label={`Móvil derecho${rightDevice.unsupported ? ' sin vibración' : ''}`} />
+        <ConnectionBadge connected={leftDevice.connected} label={`Left phone${leftDevice.unsupported ? ' without vibration' : ''}`} />
+        <ConnectionBadge connected={rightDevice.connected} label={`Right phone${rightDevice.unsupported ? ' without vibration' : ''}`} />
       </div>
 
       <div className="field-group">
-        <label htmlFor="pulse-duration">Duración de pulso: {tactile.pulseDurationMs} ms</label>
+        <label htmlFor="pulse-duration">Pulse duration: {tactile.pulseDurationMs} ms</label>
         <input
           id="pulse-duration"
           type="range"
@@ -55,7 +55,7 @@ export function TactilePanel({ tactile, leftDevice, rightDevice, onChange }: Tac
       </div>
 
       <p className="panel-note">
-        Usa dos móviles Android con Chrome/Samsung Internet. Cada móvil se vincula desde el QR del cliente.
+        Use two Android phones with Chrome/Samsung Internet. Each phone is paired from the client QR.
       </p>
     </section>
   );

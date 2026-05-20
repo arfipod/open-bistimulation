@@ -1,52 +1,9 @@
-# Roadmap
+# ROADMAP
 
-## Hito 1 — MVP funcional
+This document is now in English. Please review and update details as needed.
 
-Incluido en este repo:
+- Supabase setup uses   - VITE_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL
+  - VITE_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY
+- Vercel Supabase integration also creates: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_PUBLISHABLE_KEY, POSTGRES_URL, and related POSTGRES_* variables.
+- The app now supports Vercel/Supabase variable names through aliases in runtime config documentation.
 
-- React + TypeScript + Vite.
-- Supabase RPC + Realtime.
-- Sesión terapeuta/cliente.
-- Visual con cuatro direcciones.
-- Audio sintético.
-- Táctil con dos móviles.
-- Pausa/reanudación.
-- Preferencias locales y por sesión.
-- Deploy Vercel.
-
-## Hito 2 — Endurecimiento técnico
-
-- Tests unitarios para `motion.ts`.
-- Debounce de guardado de estado en sliders.
-- Reconexión más explícita en UI.
-- Indicador de latencia aproximada.
-- Modo oscuro.
-- Mejoras de accesibilidad.
-
-## Hito 3 — Seguridad real
-
-- Supabase Auth.
-- Perfil de terapeuta.
-- Preferencias persistentes por terapeuta.
-- Lista de clientes sin datos clínicos sensibles.
-- Canales Realtime privados.
-- Edge Functions o backend propio para validación fuerte.
-
-## Hito 4 — Hardware táctil dedicado
-
-- Prototipo WebSerial.
-- Prototipo WebUSB.
-- Prototipo WebBluetooth.
-- Firmware simple para microcontrolador.
-- Protocolo de comandos con ack/retry.
-- Detección de desconexiones y latencia.
-
-## Hito 5 — Producto
-
-- Diseño UX profesional.
-- Onboarding.
-- Multiidioma.
-- Exportación/importación de preferencias.
-- Auditoría de seguridad.
-- Revisión legal.
-- Métricas operativas no clínicas.
