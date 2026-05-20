@@ -18,6 +18,7 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(false);
+  const [activationNotice, setActivationNotice] = useState<string | null>(null);
   const [pulseCount, setPulseCount] = useState(0);
   const [lastPulseAt, setLastPulseAt] = useState<string | null>(null);
   const [sessionEnded, setSessionEnded] = useState(false);
@@ -109,16 +110,32 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
 
   const handleEnable = () => {
     if (!supported) {
+      setActivationNotice('Este navegador no expone la API de vibracion. Prueba Chrome o Samsung Internet en Android.');
       return;
     }
 
-    navigator.vibrate([80, 40, 80]);
+    const accepted = navigator.vibrate([80, 40, 80]);
+
+    if (!accepted) {
+      setActivationNotice(
+        'El navegador rechazo la vibracion. Revisa modo silencio, No molestar y ajustes de vibracion del sistema.',
+      );
+      return;
+    }
+
+    setActivationNotice(null);
     setEnabled(true);
   };
 
   const handleTest = () => {
     if (supported) {
-      navigator.vibrate([120, 50, 120]);
+      const accepted = navigator.vibrate([120, 50, 120]);
+
+      if (!accepted) {
+        setActivationNotice(
+          'El navegador rechazo la vibracion. Revisa modo silencio, No molestar y ajustes de vibracion del sistema.',
+        );
+      }
     }
   };
 
@@ -148,6 +165,8 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
             ? 'Este navegador expone navigator.vibrate(). Pulsa activar para permitir vibraciones.'
             : 'This browser does not support the Vibration API. Use Android with Chrome or Samsung Internet.'}
         </div>
+
+        {activationNotice ? <div className="warning-box">{activationNotice}</div> : null}
 
         <div className="device-metrics">
           <div>
