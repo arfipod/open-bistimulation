@@ -170,7 +170,7 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
 
         <div className="control-actions tactile-actions">
           <button className="primary-button" type="button" disabled={!supported || enabled} onClick={handleEnable}>
-            {enabled ? 'Vibration enabledda' : 'Enable vibration'}
+            {enabled ? 'Vibration enabled' : 'Enable vibration'}
           </button>
           <button className="secondary-button" type="button" disabled={!supported} onClick={handleTest}>
             Test vibration
