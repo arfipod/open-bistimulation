@@ -3,7 +3,7 @@ interface ErrorViewProps {
   message: string;
 }
 
-export function ErrorView({ title = 'No se pudo abrir la sesión', message }: ErrorViewProps) {
+export function ErrorView({ title = 'Could not open the session', message }: ErrorViewProps) {
   return (
     <main className="centered-page">
       <div className="panel error-panel">

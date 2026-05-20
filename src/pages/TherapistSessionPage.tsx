@@ -86,7 +86,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
 
   useEffect(() => {
     if (!token) {
-      setError('Falta el token de terapeuta en la URL.');
+      setError('Missing therapist token in the URL.');
       return;
     }
 
@@ -102,7 +102,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
         }
 
         if (session.role !== 'therapist') {
-          setError('Este enlace no tiene permisos de terapeuta.');
+          setError('This link does not have therapist permissions.');
           return;
         }
 
@@ -110,7 +110,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
         setClientToken(session.clientToken ?? null);
       } catch (nextError) {
         if (active) {
-          setError(nextError instanceof Error ? nextError.message : 'No se pudo cargar la sesión.');
+          setError(nextError instanceof Error ? nextError.message : 'Could not load the session.');
         }
       }
     }
@@ -162,7 +162,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   }
 
   if (!state || !clientToken || !token) {
-    return <LoadingView message="Abriendo panel de terapeuta…" />;
+    return <LoadingView message="Opening therapist panel…" />;
   }
 
   const handleStart = async () => {
@@ -218,7 +218,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
 
     saveLocalPreferences(preferences);
     await saveTherapistPreferences(sessionId, token, preferences);
-    setNotice('Preferencias guardadas localmente y en Supabase para esta sesión.');
+    setNotice('Preferences saved locally and in Supabase for this session.');
     window.setTimeout(() => setNotice(null), 2500);
   };
 
@@ -236,7 +236,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   return (
     <main className="therapist-page">
       <AppHeader
-        title="Panel terapeuta"
+        title="Therapist panel"
         connected={realtimeStatus === 'connected'}
         connectionLabel={realtimeStatus === 'connected' ? 'Realtime conectado' : 'Realtime desconectado'}
         actions={
@@ -246,7 +246,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
               Previsualizar cliente
             </button>
             <button className="danger-button" type="button" disabled={busy} onClick={handleEndSession}>
-              Finalizar sesión
+              End session
             </button>
           </>
         }
@@ -272,7 +272,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
         <div className="middle-column">
           <AuditoryPanel audio={state.audio} onChange={(audio) => patchState((current) => ({ ...current, audio }))} />
           <button className="secondary-button full-width" type="button" onClick={() => setAudioUnlocked(true)}>
-            {audioUnlocked ? 'Audio terapeuta activado' : 'Activar audio local'}
+            {audioUnlocked ? 'Therapist audio enabled' : 'Enable local audio'}
           </button>
           <ClientPreview state={state} serverTimeOffsetMs={clock.offsetMs} />
         </div>

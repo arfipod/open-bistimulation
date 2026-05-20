@@ -37,38 +37,38 @@ export function LandingPage() {
   return (
     <main className="landing-page">
       <section className="hero panel">
-        <span className="eyebrow">MVP privado de BLS remoto</span>
+        <span className="eyebrow">Private remote BLS MVP</span>
         <h1>Open Binstimulation</h1>
         <p>
-          Sesiones de estimulación bilateral controladas por terapeuta: visual, auditivo y táctil mediante dos móviles
-          auxiliares con vibración del navegador.
+          Therapist-controlled bilateral stimulation sessions: visual, auditory, and tactile using two
+          companion phones with browser vibration.
         </p>
 
         {!isSupabaseConfigured ? (
           <div className="warning-box">
-            Faltan variables de entorno de Supabase. Copia <code>.env.example</code> a <code>.env.local</code> y rellena
-            <code> VITE_SUPABASE_URL</code> y <code> VITE_SUPABASE_ANON_KEY</code>.
+            Supabase environment variables are missing. Copy <code>.env.example</code> to <code>.env.local</code> and fill in
+            <code> VITE_SUPABASE_URL</code> and <code> VITE_SUPABASE_ANON_KEY</code>.
           </div>
         ) : null}
 
         {error ? <div className="error-box">{error}</div> : null}
 
         <button className="primary-button hero-button" type="button" onClick={handleCreate} disabled={isCreating || !isSupabaseConfigured}>
-          {isCreating ? 'Creando sesión…' : 'Crear sesión BLS'}
+          {isCreating ? 'Creating session…' : 'Create BLS session'}
         </button>
 
         <div className="hero-grid">
           <article>
             <strong>Visual</strong>
-            <span>Color, fondo, velocidad, posición y direcciones horizontal, vertical, diagonal e infinito.</span>
+            <span>Color, background, speed, position, and horizontal, vertical, diagonal, and infinity directions.</span>
           </article>
           <article>
-            <strong>Auditivo</strong>
-            <span>Sonidos sintéticos con paneo estéreo izquierda/derecha usando Web Audio API.</span>
+            <strong>Auditory</strong>
+            <span>Synthetic sounds with left/right stereo panning using the Web Audio API.</span>
           </article>
           <article>
-            <strong>Táctil</strong>
-            <span>QR para vincular dos móviles y emitir vibración alterna mediante JavaScript.</span>
+            <strong>Tactile</strong>
+            <span>QR pairing for two phones with alternating vibration via JavaScript.</span>
           </article>
         </div>
       </section>

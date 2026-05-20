@@ -25,7 +25,7 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
 
   const deviceId = useMemo(() => getOrCreateLocalId(`open-binstimulation.tactile.${sessionId}.${side}`), [sessionId, side]);
   const supported = typeof navigator !== 'undefined' && 'vibrate' in navigator;
-  const label = side === 'left' ? 'Móvil izquierdo' : 'Móvil derecho';
+  const label = side === 'left' ? 'Left phone' : 'Right phone';
 
   const handleMessage = useCallback(
     (message: SessionBroadcastMessage) => {
@@ -64,7 +64,7 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
         }
       } catch (nextError) {
         if (active) {
-          setError(nextError instanceof Error ? nextError.message : 'No se pudo vincular el móvil.');
+          setError(nextError instanceof Error ? nextError.message : 'Could not pair the phone.');
         }
       }
     }
@@ -127,53 +127,53 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
   }
 
   if (!loaded) {
-    return <LoadingView message="Vinculando móvil táctil…" />;
+    return <LoadingView message="Pairing tactile phone…" />;
   }
 
   if (sessionEnded) {
-    return <ErrorView title="Sesión finalizada" message="El terapeuta ha finalizado esta sesión." />;
+    return <ErrorView title="Session ended" message="The therapist has ended this session." />;
   }
 
   return (
     <main className="tactile-page">
       <section className="panel tactile-device-card">
-        <span className="eyebrow">Dispositivo táctil</span>
+        <span className="eyebrow">Tactile device</span>
         <h1>{label}</h1>
         <p>
-          Este móvil vibrará cuando el terapeuta emita pulsos <strong>{side === 'left' ? 'izquierdos' : 'derechos'}</strong>.
+          This phone will vibrate when the therapist emits <strong>{side === 'left' ? 'left' : 'right'}</strong>.
         </p>
 
         <div className={`support-box ${supported ? 'ok' : 'bad'}`}>
           {supported
             ? 'Este navegador expone navigator.vibrate(). Pulsa activar para permitir vibraciones.'
-            : 'Este navegador no soporta la API de vibración. Usa Android con Chrome o Samsung Internet.'}
+            : 'This browser does not support the Vibration API. Use Android with Chrome or Samsung Internet.'}
         </div>
 
         <div className="device-metrics">
           <div>
             <span>Realtime</span>
-            <strong>{realtimeStatus === 'connected' ? 'Conectado' : 'Reconectando'}</strong>
+            <strong>{realtimeStatus === 'connected' ? 'Connected' : 'Reconnecting'}</strong>
           </div>
           <div>
             <span>Estado</span>
-            <strong>{enabled ? 'Vibración activa' : 'Pendiente de activación'}</strong>
+            <strong>{enabled ? 'Vibration enabled' : 'Pending activation'}</strong>
           </div>
           <div>
             <span>Pulsos recibidos</span>
             <strong>{pulseCount}</strong>
           </div>
           <div>
-            <span>Último pulso</span>
+            <span>Last pulse</span>
             <strong>{lastPulseAt ?? '—'}</strong>
           </div>
         </div>
 
         <div className="control-actions tactile-actions">
           <button className="primary-button" type="button" disabled={!supported || enabled} onClick={handleEnable}>
-            {enabled ? 'Vibración activada' : 'Activar vibración'}
+            {enabled ? 'Vibration enabledda' : 'Enable vibration'}
           </button>
           <button className="secondary-button" type="button" disabled={!supported} onClick={handleTest}>
-            Probar vibración
+            Test vibration
           </button>
         </div>
       </section>

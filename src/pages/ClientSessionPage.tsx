@@ -58,7 +58,7 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
         setState(session.state);
       } catch (nextError) {
         if (active) {
-          setError(nextError instanceof Error ? nextError.message : 'No se pudo cargar la sesión.');
+          setError(nextError instanceof Error ? nextError.message : 'Could not load the session.');
         }
       }
     }
@@ -100,11 +100,11 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
   }
 
   if (!state || !token) {
-    return <LoadingView message="Conectando con el terapeuta…" />;
+    return <LoadingView message="Connecting to therapist…" />;
   }
 
   if (sessionEnded) {
-    return <ErrorView title="Sesión finalizada" message="El terapeuta ha finalizado esta sesión." />;
+    return <ErrorView title="Session ended" message="The therapist has ended this session." />;
   }
 
   return (
@@ -113,25 +113,25 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
 
       <div className="client-topbar">
         <span className={`client-status ${realtimeStatus === 'connected' ? 'ok' : 'bad'}`}>
-          {realtimeStatus === 'connected' ? 'Conectado' : 'Reconectando'}
+          {realtimeStatus === 'connected' ? 'Connected' : 'Reconnecting'}
         </span>
         <button className="secondary-button" type="button" onClick={() => setAudioUnlocked(true)}>
-          {audioUnlocked ? 'Audio activo' : 'Activar audio'}
+          {audioUnlocked ? 'Audio enabled' : 'Enable audio'}
         </button>
         <button className="secondary-button" type="button" onClick={() => setShowPairing((current) => !current)}>
-          {showPairing ? 'Ocultar QR táctil' : 'QR táctil'}
+          {showPairing ? 'Hide tactile QR' : 'Tactile QR'}
         </button>
         <button className="secondary-button" type="button" onClick={() => void document.documentElement.requestFullscreen?.()}>
-          Pantalla completa
+          Fullscreen
         </button>
       </div>
 
       {!audioUnlocked && state.audio.enabled ? (
         <div className="join-audio-panel panel">
-          <h1>Activa el audio</h1>
-          <p>El navegador necesita un toque del usuario para permitir audio estéreo.</p>
+          <h1>Enable audio</h1>
+          <p>The browser requires a user gesture to allow stereo audio.</p>
           <button className="primary-button" type="button" onClick={() => setAudioUnlocked(true)}>
-            Entrar y activar audio
+            Enter and enable audio
           </button>
         </div>
       ) : null}
@@ -139,12 +139,12 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
       {showPairing && tactileLinks ? (
         <section className="pairing-drawer panel">
           <header>
-            <h2>Vincular móviles táctiles</h2>
-            <p>Escanea cada QR con un móvil diferente. Recomendado: Android + Chrome/Samsung Internet.</p>
+            <h2>Pair tactile phones</h2>
+            <p>Scan each QR with a different phone. Recommended: Android + Chrome/Samsung Internet.</p>
           </header>
           <div className="qr-grid">
-            <QRCodeCard title="Móvil izquierdo" url={tactileLinks.left} helper="Este móvil vibrará en los pulsos izquierdos." />
-            <QRCodeCard title="Móvil derecho" url={tactileLinks.right} helper="Este móvil vibrará en los pulsos derechos." />
+            <QRCodeCard title="Left phone" url={tactileLinks.left} helper="This phone will vibrate on left pulses." />
+            <QRCodeCard title="Right phone" url={tactileLinks.right} helper="This phone will vibrate on right pulses." />
           </div>
         </section>
       ) : null}
