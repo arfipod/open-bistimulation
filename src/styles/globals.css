@@ -207,6 +207,37 @@ code {
   margin-top: 14px;
 }
 
+.support-button {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 104px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #ffffff;
+  font-weight: 900;
+  text-decoration: none;
+  box-shadow: 0 10px 22px rgba(70, 115, 157, 0.28);
+  transition: transform 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.support-button:hover {
+  transform: translateY(-1px);
+  background: var(--primary-dark);
+  box-shadow: 0 12px 26px rgba(70, 115, 157, 0.34);
+}
+
+.support-button:focus-visible {
+  outline: 3px solid #9bbbd6;
+  outline-offset: 3px;
+}
+
 .full-width {
   width: 100%;
 }
@@ -949,5 +980,10 @@ input[type='range'] {
     right: 12px;
     bottom: 80px;
     width: auto;
+  }
+
+  .support-button {
+    right: 12px;
+    bottom: 12px;
   }
 }
