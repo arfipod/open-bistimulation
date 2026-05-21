@@ -31,6 +31,7 @@ import { ErrorView } from '../components/ErrorView';
 import { InviteClient } from '../components/InviteClient';
 import { LoadingView } from '../components/LoadingView';
 import { SessionControls } from '../components/SessionControls';
+import { SessionStats } from '../components/SessionStats';
 import { TactilePanel } from '../components/TactilePanel';
 import { VisualPanel } from '../components/VisualPanel';
 
@@ -371,6 +372,9 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
             rightDevice={normalizedRight}
             onChange={(tactile) => patchState((current) => ({ ...current, tactile }))}
           />
+          <section className="stats-panel panel" aria-label={t('controls.time')}>
+            <SessionStats state={state} serverTimeOffsetMs={clock.offsetMs} />
+          </section>
           {clock.error ? <div className="warning-box">{t('session.serverClock')}: {clock.error}</div> : null}
           {notice ? <div className="success-box">{notice}</div> : null}
         </div>

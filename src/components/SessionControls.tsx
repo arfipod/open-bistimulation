@@ -3,7 +3,6 @@ import { formatElapsedTime, getElapsedMs, getServerNowMs } from '../domain/motio
 import type { SessionState } from '../domain/sessionTypes';
 import { useTicker } from '../hooks/useTicker';
 import { useI18n } from '../lib/i18n';
-import { SessionStats } from './SessionStats';
 
 interface SessionControlsProps {
   state: SessionState;
@@ -79,7 +78,6 @@ export function SessionControls({
 
   return (
     <section className="session-controls panel">
-      <SessionStats state={state} serverTimeOffsetMs={serverTimeOffsetMs} />
       <div className="round-timer">
         <div className="round-timer-display">
           <span>{t('controls.roundDuration')}</span>

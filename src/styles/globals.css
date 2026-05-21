@@ -599,6 +599,14 @@ input[type='range'] {
   padding: 16px;
 }
 
+.stats-panel {
+  padding: 16px;
+}
+
+.stats-panel .stats-card {
+  margin-bottom: 0;
+}
+
 .round-timer {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
