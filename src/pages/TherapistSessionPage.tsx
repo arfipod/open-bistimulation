@@ -342,13 +342,6 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
             visual={state.visual}
             onChange={(visual) => patchState((current) => retimeMotionForVisualChange(current, visual, getServerNowMs(clock.offsetMs)))}
           />
-          <SessionControls
-            state={state}
-            serverTimeOffsetMs={clock.offsetMs}
-            roundDurationMs={roundDurationMs}
-            onRoundDurationChange={setRoundDurationMs}
-            busy={busy}
-          />
         </div>
 
         <div className="middle-column">
@@ -379,6 +372,13 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
               busy={busy}
             />
           </section>
+          <SessionControls
+            state={state}
+            serverTimeOffsetMs={clock.offsetMs}
+            roundDurationMs={roundDurationMs}
+            onRoundDurationChange={setRoundDurationMs}
+            busy={busy}
+          />
           {clock.error ? <div className="warning-box">{t('session.serverClock')}: {clock.error}</div> : null}
           {notice ? <div className="success-box">{notice}</div> : null}
         </div>
