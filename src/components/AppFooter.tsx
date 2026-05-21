@@ -18,6 +18,7 @@ export function AppFooter() {
         </a>
       </nav>
       <p>{t('app.footer')}</p>
+      <p>{t('footer.credit')}</p>
     </footer>
   );
 }

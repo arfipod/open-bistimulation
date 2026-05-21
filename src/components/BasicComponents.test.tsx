@@ -59,6 +59,7 @@ describe('basic components', () => {
     );
 
     expect(screen.getByText('Open Bistimulation is independent open-source software.')).toBeInTheDocument();
+    expect(screen.getByText('Made with 💙 by arrf')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Legal' })).toHaveAttribute('href', '/legal');
     expect(screen.getByRole('link', { name: 'Support' })).toHaveAttribute('href', 'https://ko-fi.com/anrubiof');
     expect(screen.getByText('Loading...')).toBeInTheDocument();
