@@ -172,6 +172,7 @@ const fallbackState: SessionState = {
     dotSize: 52,
     speed: 5,
     direction: 'horizontal',
+    motionOrder: 'left-to-right',
     verticalPosition: 'center',
   },
   audio: {

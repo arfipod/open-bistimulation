@@ -1,6 +1,7 @@
 export type SessionRole = 'therapist' | 'client';
 export type SessionStatus = 'idle' | 'running' | 'paused' | 'stopped' | 'ended';
-export type VisualDirection = 'horizontal' | 'vertical' | 'diagonal' | 'infinity';
+export type VisualDirection = 'horizontal' | 'vertical' | 'diagonal' | 'diagonal-down' | 'diagonal-up' | 'infinity';
+export type MotionOrder = 'left-to-right' | 'right-to-left' | 'random';
 export type VerticalPosition = 'top' | 'center' | 'bottom';
 export type AudioSound = 'snap' | 'beep' | 'bell' | 'heartbeat';
 export type TactileSide = 'left' | 'right';
@@ -12,6 +13,7 @@ export interface VisualSettings {
   dotSize: number;
   speed: number;
   direction: VisualDirection;
+  motionOrder?: MotionOrder;
   verticalPosition: VerticalPosition;
 }
 

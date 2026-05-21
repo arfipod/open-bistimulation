@@ -1,4 +1,4 @@
-import type { SessionState, TactileSide, VisualDirection, VisualSettings } from './sessionTypes';
+import type { MotionOrder, SessionState, TactileSide, VisualDirection, VisualSettings } from './sessionTypes';
 
 export interface StimulusPosition {
   x: number;
@@ -61,7 +61,7 @@ export function getMotionSnapshot(state: SessionState, nowMs: number): MotionSna
   const cycleMs = cycleMsFromSpeed(state.visual.speed);
   const phase = (elapsedMs / cycleMs) * Math.PI * 2;
   const halfCycleIndex = Math.floor((phase + Math.PI / 2) / Math.PI);
-  const side = sideFromHalfCycleIndex(halfCycleIndex);
+  const side = sideFromHalfCycleIndex(halfCycleIndex, getMotionOrder(state.visual));
   const passes = Math.max(0, halfCycleIndex);
 
   return {
@@ -74,8 +74,8 @@ export function getMotionSnapshot(state: SessionState, nowMs: number): MotionSna
   };
 }
 
-export function sideFromHalfCycleIndex(index: number): TactileSide {
-  return index % 2 === 0 ? 'right' : 'left';
+export function sideFromHalfCycleIndex(index: number, motionOrder: MotionOrder = 'left-to-right'): TactileSide {
+  return targetSideForSegment(Math.max(0, index - 1), motionOrder);
 }
 
 export function getStimulusPosition(
@@ -92,7 +92,8 @@ export function getStimulusPosition(
   const ampY = Math.max(8, safeHeight / 2 - padding);
   const cycleMs = cycleMsFromSpeed(visual.speed);
   const phase = (elapsedMs / cycleMs) * Math.PI * 2;
-  const glide = getLinearGlide(elapsedMs, cycleMs);
+  const motionOrder = getMotionOrder(visual);
+  const glide = getOrderedGlide(elapsedMs, cycleMs, motionOrder);
   const centerX = safeWidth / 2;
   const centerY = verticalCenterForPosition(visual.verticalPosition, safeHeight);
 
@@ -112,25 +113,60 @@ export function getStimulusPosition(
     };
   }
 
-  if (direction === 'diagonal') {
+  if (direction === 'diagonal' || direction === 'diagonal-down') {
     return {
       x: centerX + ampX * glide,
       y: safeHeight / 2 + ampY * glide,
     };
   }
 
-  return getInfinityPosition(direction, phase, centerX, safeHeight / 2, ampX, ampY);
-}
-
-function getLinearGlide(elapsedMs: number, cycleMs: number): number {
-  const rawProgress = elapsedMs / cycleMs + 0.25;
-  const progress = rawProgress - Math.floor(rawProgress);
-
-  if (progress < 0.5) {
-    return progress * 4 - 1;
+  if (direction === 'diagonal-up') {
+    return {
+      x: centerX + ampX * glide,
+      y: safeHeight / 2 - ampY * glide,
+    };
   }
 
-  return 3 - progress * 4;
+  return getInfinityPosition(direction, phase, centerX, safeHeight / 2, ampX, ampY, motionOrder);
+}
+
+function getMotionOrder(visual: VisualSettings): MotionOrder {
+  return visual.motionOrder ?? 'left-to-right';
+}
+
+function getOrderedGlide(elapsedMs: number, cycleMs: number, motionOrder: MotionOrder): number {
+  const halfCycleMs = cycleMs / 2;
+  const segmentIndex = Math.floor(elapsedMs / halfCycleMs + 0.5);
+  const segmentStartMs = (segmentIndex - 0.5) * halfCycleMs;
+  const progress = clamp((elapsedMs - segmentStartMs) / halfCycleMs, 0, 1);
+  const from = glideForSide(targetSideForSegment(segmentIndex - 1, motionOrder));
+  const to = glideForSide(targetSideForSegment(segmentIndex, motionOrder));
+
+  return from + (to - from) * progress;
+}
+
+function targetSideForSegment(index: number, motionOrder: MotionOrder): TactileSide {
+  if (motionOrder === 'right-to-left') {
+    return index % 2 === 0 ? 'left' : 'right';
+  }
+
+  if (motionOrder === 'random') {
+    return deterministicUnit(index) < 0.5 ? 'left' : 'right';
+  }
+
+  return index % 2 === 0 ? 'right' : 'left';
+}
+
+function glideForSide(side: TactileSide): number {
+  return side === 'right' ? 1 : -1;
+}
+
+function deterministicUnit(index: number): number {
+  let value = Math.imul(index ^ 0x9e3779b9, 0x85ebca6b);
+  value ^= value >>> 13;
+  value = Math.imul(value, 0xc2b2ae35);
+  value ^= value >>> 16;
+  return (value >>> 0) / 4294967296;
 }
 
 function getInfinityPosition(
@@ -140,13 +176,16 @@ function getInfinityPosition(
   centerY: number,
   ampX: number,
   ampY: number,
+  motionOrder: MotionOrder,
 ): StimulusPosition {
   if (direction !== 'infinity') {
     return { x: centerX, y: centerY };
   }
 
+  const xSign = motionOrder === 'right-to-left' ? -1 : 1;
+
   return {
-    x: centerX + ampX * Math.sin(phase),
+    x: centerX + xSign * ampX * Math.sin(phase),
     y: centerY + ampY * Math.sin(phase) * Math.cos(phase),
   };
 }

@@ -11,9 +11,23 @@ export function loadLocalPreferences(): SessionPreferences {
   }
 
   try {
+    const parsed = JSON.parse(raw) as Partial<SessionPreferences>;
+
     return {
       ...DEFAULT_PREFERENCES,
-      ...JSON.parse(raw),
+      ...parsed,
+      visual: {
+        ...DEFAULT_PREFERENCES.visual,
+        ...parsed.visual,
+      },
+      audio: {
+        ...DEFAULT_PREFERENCES.audio,
+        ...parsed.audio,
+      },
+      tactile: {
+        ...DEFAULT_PREFERENCES.tactile,
+        ...parsed.tactile,
+      },
     } as SessionPreferences;
   } catch {
     return DEFAULT_PREFERENCES;

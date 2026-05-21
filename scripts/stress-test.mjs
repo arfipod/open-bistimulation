@@ -23,6 +23,7 @@ const DEFAULT_STATE = {
     dotSize: 52,
     speed: 5,
     direction: 'horizontal',
+    motionOrder: 'left-to-right',
     verticalPosition: 'center',
   },
   audio: {
