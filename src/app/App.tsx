@@ -7,6 +7,7 @@ import { ClientSessionPage } from '../pages/ClientSessionPage';
 import { TactileDevicePage } from '../pages/TactileDevicePage';
 import { AppFooter } from '../components/AppFooter';
 import { ErrorView } from '../components/ErrorView';
+import { KoFiWidget } from '../components/KoFiWidget';
 import { useI18n } from '../lib/i18n';
 
 export default function App() {
@@ -33,10 +34,13 @@ export default function App() {
     page = <ErrorView title={t('app.notFoundTitle')} message={t('app.notFoundMessage')} />;
   }
 
+  const showSupportWidget = route.page === 'landing' || route.page === 'therapist';
+
   return (
     <div className={`app-shell app-shell-${route.page}`}>
       {page}
       <AppFooter />
+      {showSupportWidget ? <KoFiWidget /> : null}
     </div>
   );
 }
