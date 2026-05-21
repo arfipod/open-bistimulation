@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Open Bistimulation icon</title>
+  <desc id="desc">Bilateral stimulation symbol with alternating pulses around a centered point.</desc>
+  <defs>
+    <linearGradient id="bg" x1="18" x2="110" y1="16" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0f766e" />
+      <stop offset="1" stop-color="#14b8a6" />
+    </linearGradient>
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.18" />
+    </filter>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)" />
+  <g filter="url(#soft-shadow)">
+    <path
+      d="M26 64c12-20 28-30 38-30s26 10 38 30c-12 20-28 30-38 30S38 84 26 64Z"
+      fill="#f8fafc"
+      opacity="0.96"
+    />
+    <circle cx="64" cy="64" r="14" fill="#0f766e" />
+    <circle cx="64" cy="64" r="6" fill="#f8fafc" />
+    <path
+      d="M41 52c-5 3-9 7-13 12 4 5 8 9 13 12M87 52c5 3 9 7 13 12-4 5-8 9-13 12"
+      fill="none"
+      stroke="#99f6e4"
+      stroke-linecap="round"
+      stroke-width="8"
+    />
+    <path
+      d="M14 64h12M102 64h12"
+      fill="none"
+      stroke="#f8fafc"
+      stroke-linecap="round"
+      stroke-width="8"
+    />
+  </g>
+</svg>

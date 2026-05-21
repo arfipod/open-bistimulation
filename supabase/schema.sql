@@ -1,4 +1,4 @@
--- Open Binstimulation MVP schema
+-- Open Bistimulation MVP schema
 -- Run this file in Supabase Dashboard > SQL Editor > New Query.
 
 create extension if not exists pgcrypto;

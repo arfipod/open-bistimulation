@@ -6,7 +6,7 @@ const LANGUAGE_STORAGE_KEY = 'open-bistimulation.language.v1';
 
 const translations = {
   en: {
-    'app.brandAria': 'Open Binstimulation home',
+    'app.brandAria': 'Open Bistimulation home',
     'app.footer': 'made with 💙 by arrf',
     'app.languageToggle': 'Switch language to Spanish',
     'app.languageLabel': 'English',
@@ -148,7 +148,7 @@ const translations = {
     'tactileDevice.testVibration': 'Test vibration',
   },
   es: {
-    'app.brandAria': 'Inicio de Open Binstimulation',
+    'app.brandAria': 'Inicio de Open Bistimulation',
     'app.footer': 'made with 💙 by arrf',
     'app.languageToggle': 'Cambiar idioma a ingles',
     'app.languageLabel': 'Espanol',

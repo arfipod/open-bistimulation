@@ -43,7 +43,7 @@ export function LandingPage() {
       <main className="landing-page">
         <section className="hero panel">
           <span className="eyebrow">{t('landing.eyebrow')}</span>
-          <h1>Open Binstimulation</h1>
+          <h1>Open Bistimulation</h1>
           <p>{t('landing.description')}</p>
 
           {!isSupabaseConfigured ? <div className="warning-box">{t('landing.supabaseWarning')}</div> : null}

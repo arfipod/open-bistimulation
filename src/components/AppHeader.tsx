@@ -16,6 +16,7 @@ export function AppHeader({ title = 'open-bistimulation', connectionLabel, conne
   return (
     <header className="app-header">
       <a className="brand" href="/" aria-label={t('app.brandAria')}>
+        <img className="brand-icon" src="/app-icon.svg" alt="" aria-hidden="true" />
         <span>open</span>-bistimulation
       </a>
       {title ? <strong className="header-title">{title}</strong> : null}
