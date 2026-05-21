@@ -587,6 +587,27 @@ html:fullscreen .app-shell-client .app-footer {
   font-weight: 800;
 }
 
+.text-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+}
+
+.text-input:focus {
+  outline: 3px solid #9bbbd6;
+  outline-offset: 1px;
+}
+
+.field-error {
+  color: #b91c1c;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
 input[type='range'] {
   width: 100%;
   accent-color: var(--primary);
@@ -736,6 +757,91 @@ input[type='range'] {
 .panel-note {
   color: var(--muted);
   line-height: 1.45;
+}
+
+.tactile-status-block {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.tactile-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tactile-status-row strong {
+  min-width: 0;
+}
+
+.tactile-device-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.tactile-device-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 10px;
+  align-items: center;
+}
+
+.tactile-device-row strong {
+  min-width: 0;
+}
+
+.tactile-device-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.tactile-device-row span::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ef4444;
+}
+
+.tactile-device-row.is-connected span {
+  color: #365a7c;
+}
+
+.tactile-device-row.is-connected span::before {
+  background: #46739d;
+}
+
+.tactile-device-row small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.tactile-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.tactile-actions .danger-button {
+  grid-column: 1 / -1;
+}
+
+.tactile-error {
+  margin: 0;
+  color: #92400e;
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .session-controls {

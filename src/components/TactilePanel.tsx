@@ -1,13 +1,76 @@
+import { useState } from 'react';
 import type { TactileSettings } from '../domain/sessionTypes';
+import type { JoyConDeviceSummary, JoyConIntensity, JoyConSide } from '../lib/joyconBridgeClient';
 import { useI18n } from '../lib/i18n';
+import { ConnectionBadge } from './ConnectionBadge';
 
 interface TactilePanelProps {
   tactile: TactileSettings;
   onChange: (next: TactileSettings) => void;
+  bridgeUrl: string;
+  bridgeUrlValid: boolean;
+  bridgeOnline: boolean;
+  devices: JoyConDeviceSummary[];
+  leftConnected: boolean;
+  rightConnected: boolean;
+  error: string | null;
+  onBridgeUrlChange: (url: string) => void;
+  onRefresh: () => void;
+  onTestPulse: (options: { side: JoyConSide; intensity: JoyConIntensity; duration: number; repeats: number }) => void;
+  onNeutral: (side: JoyConSide) => void;
 }
 
-export function TactilePanel({ tactile, onChange }: TactilePanelProps) {
+const INTENSITIES: Array<{
+  value: JoyConIntensity;
+  labelKey: 'tactile.intensity.low' | 'tactile.intensity.medium' | 'tactile.intensity.high';
+}> = [
+  { value: 'low', labelKey: 'tactile.intensity.low' },
+  { value: 'medium', labelKey: 'tactile.intensity.medium' },
+  { value: 'high', labelKey: 'tactile.intensity.high' },
+];
+
+function findDevice(devices: JoyConDeviceSummary[], side: 'left' | 'right'): JoyConDeviceSummary | undefined {
+  return devices.find((device) => device.side === side);
+}
+
+function batteryText(device: JoyConDeviceSummary | undefined, batteryUnknown: string): string {
+  const battery = device?.battery;
+
+  if (typeof battery?.percent === 'number') {
+    return `${battery.percent}%`;
+  }
+
+  if (battery?.label && battery.label !== 'Unknown') {
+    return battery.label;
+  }
+
+  return batteryUnknown;
+}
+
+export function TactilePanel({
+  tactile,
+  onChange,
+  bridgeUrl,
+  bridgeUrlValid,
+  bridgeOnline,
+  devices,
+  leftConnected,
+  rightConnected,
+  error,
+  onBridgeUrlChange,
+  onRefresh,
+  onTestPulse,
+  onNeutral,
+}: TactilePanelProps) {
   const { t } = useI18n();
+  const [intensity, setIntensity] = useState<JoyConIntensity>('medium');
+
+  const leftDevice = findDevice(devices, 'left');
+  const rightDevice = findDevice(devices, 'right');
+
+  const testSide = (side: JoyConSide) => {
+    onTestPulse({ side, intensity, duration: tactile.pulseDurationMs, repeats: 1 });
+  };
 
   return (
     <section className="control-panel">
@@ -23,7 +86,62 @@ export function TactilePanel({ tactile, onChange }: TactilePanelProps) {
         </label>
       </header>
 
-      <p className="panel-note">{t('tactile.bridgeNote')}</p>
+      <p className="panel-note">{t('tactile.bridgeRequirement')}</p>
+
+      <div className="field-group">
+        <label htmlFor="joycon-bridge-url">{t('tactile.localBridgeUrl')}</label>
+        <input
+          id="joycon-bridge-url"
+          className="text-input"
+          type="url"
+          value={bridgeUrl}
+          onChange={(event) => onBridgeUrlChange(event.target.value)}
+        />
+        {!bridgeUrlValid ? <span className="field-error">{t('tactile.invalidBridgeUrl')}</span> : null}
+      </div>
+
+      <div className="tactile-status-block" aria-live="polite">
+        <div className="tactile-status-row">
+          <strong>{t('tactile.joyConBridge')}</strong>
+          <ConnectionBadge connected={bridgeOnline} label={bridgeOnline ? t('tactile.bridgeConnected') : t('tactile.bridgeOffline')} />
+        </div>
+        <div className="tactile-device-grid">
+          <DeviceStatus
+            label={t('tactile.leftJoyCon')}
+            connected={leftConnected}
+            battery={batteryText(leftDevice, t('tactile.batteryUnknown'))}
+          />
+          <DeviceStatus
+            label={t('tactile.rightJoyCon')}
+            connected={rightConnected}
+            battery={batteryText(rightDevice, t('tactile.batteryUnknown'))}
+          />
+        </div>
+        {error && bridgeUrlValid ? <p className="panel-note tactile-error">{error}</p> : null}
+      </div>
+
+      <div className="tactile-actions">
+        <button className="secondary-button compact-button" type="button" disabled={!bridgeUrlValid} onClick={onRefresh}>
+          {t('tactile.refreshDevices')}
+        </button>
+        <button className="secondary-button compact-button" type="button" disabled={!bridgeOnline || !leftConnected} onClick={() => testSide('left')}>
+          {t('tactile.testLeft')}
+        </button>
+        <button className="secondary-button compact-button" type="button" disabled={!bridgeOnline || !rightConnected} onClick={() => testSide('right')}>
+          {t('tactile.testRight')}
+        </button>
+        <button
+          className="secondary-button compact-button"
+          type="button"
+          disabled={!bridgeOnline || !leftConnected || !rightConnected}
+          onClick={() => testSide('both')}
+        >
+          {t('tactile.testBoth')}
+        </button>
+        <button className="danger-button compact-button" type="button" disabled={!bridgeOnline} onClick={() => onNeutral('both')}>
+          {t('tactile.stopRumble')}
+        </button>
+      </div>
 
       <div className="field-group">
         <label htmlFor="pulse-duration">{t('tactile.pulseDuration', { value: tactile.pulseDurationMs })}</label>
@@ -36,6 +154,22 @@ export function TactilePanel({ tactile, onChange }: TactilePanelProps) {
           value={tactile.pulseDurationMs}
           onChange={(event) => onChange({ ...tactile, pulseDurationMs: Number(event.target.value) })}
         />
+      </div>
+
+      <div className="field-group">
+        <label>{t('tactile.intensity')}</label>
+        <div className="segmented-grid three">
+          {INTENSITIES.map((nextIntensity) => (
+            <button
+              key={nextIntensity.value}
+              type="button"
+              className={intensity === nextIntensity.value ? 'is-selected' : ''}
+              onClick={() => setIntensity(nextIntensity.value)}
+            >
+              {t(nextIntensity.labelKey)}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="field-group">
@@ -53,5 +187,17 @@ export function TactilePanel({ tactile, onChange }: TactilePanelProps) {
 
       <p className="panel-note">{t('tactile.note')}</p>
     </section>
+  );
+}
+
+function DeviceStatus({ label, connected, battery }: { label: string; connected: boolean; battery: string }) {
+  const { t } = useI18n();
+
+  return (
+    <div className={`tactile-device-row ${connected ? 'is-connected' : 'is-disconnected'}`}>
+      <strong>{label}</strong>
+      <span>{connected ? t('common.connected') : t('tactile.notDetected')}</span>
+      <small>{battery}</small>
+    </div>
   );
 }

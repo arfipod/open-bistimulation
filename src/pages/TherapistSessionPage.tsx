@@ -15,13 +15,14 @@ import {
   stopPlayback,
 } from '../domain/motion';
 import { endBlsSession, getBlsSession, getServerTimeMs, saveTherapistPreferences, saveTherapistState } from '../lib/sessionApi';
-import { saveLocalPreferences } from '../lib/localStorage';
+import { getJoyConBridgeUrl, isValidJoyConBridgeUrl, saveJoyConBridgeUrl, saveLocalPreferences } from '../lib/localStorage';
 import { clientUrl } from '../lib/url';
 import { useI18n } from '../lib/i18n';
 import { useServerClock } from '../hooks/useServerClock';
 import { useSessionRealtime } from '../hooks/useSessionRealtime';
 import { useTactilePulseEmitter } from '../hooks/useTactilePulseEmitter';
 import { useAudioBls } from '../hooks/useAudioBls';
+import { useJoyConBridge } from '../hooks/useJoyConBridge';
 import { useTicker } from '../hooks/useTicker';
 import { AppHeader } from '../components/AppHeader';
 import { AuditoryPanel } from '../components/AuditoryPanel';
@@ -52,6 +53,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   const [busy, setBusy] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [roundDurationMs, setRoundDurationMs] = useState<number | null>(DEFAULT_ROUND_DURATION_MS);
+  const [bridgeUrl, setBridgeUrl] = useState(getJoyConBridgeUrl);
   const autoStopStartedRef = useRef(false);
 
   const clock = useServerClock();
@@ -65,6 +67,8 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   }, []);
 
   const { status: realtimeStatus, send } = useSessionRealtime({ sessionId, onMessage: handleMessage });
+  const bridgeUrlValid = isValidJoyConBridgeUrl(bridgeUrl);
+  const joyConBridge = useJoyConBridge({ baseUrl: bridgeUrl });
 
   useEffect(() => {
     if (!token) {
@@ -266,6 +270,14 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
     window.setTimeout(() => setNotice(null), 2500);
   };
 
+  const handleBridgeUrlChange = (nextBridgeUrl: string) => {
+    setBridgeUrl(nextBridgeUrl);
+
+    if (isValidJoyConBridgeUrl(nextBridgeUrl)) {
+      saveJoyConBridgeUrl(nextBridgeUrl);
+    }
+  };
+
   const handleEndSession = async () => {
     setBusy(true);
     try {
@@ -317,6 +329,17 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
           <TactilePanel
             tactile={state.tactile}
             onChange={(tactile) => patchState((current) => ({ ...current, tactile }))}
+            bridgeUrl={bridgeUrl}
+            bridgeUrlValid={bridgeUrlValid}
+            bridgeOnline={joyConBridge.bridgeOnline}
+            devices={joyConBridge.devices}
+            leftConnected={joyConBridge.leftConnected}
+            rightConnected={joyConBridge.rightConnected}
+            error={joyConBridge.error}
+            onBridgeUrlChange={handleBridgeUrlChange}
+            onRefresh={() => void joyConBridge.refresh()}
+            onTestPulse={(options) => void joyConBridge.testPulse(options)}
+            onNeutral={(side) => void joyConBridge.neutral({ side })}
           />
           <section className="stats-panel panel" aria-label={t('controls.time')}>
             <SessionStats state={state} serverTimeOffsetMs={clock.offsetMs} />

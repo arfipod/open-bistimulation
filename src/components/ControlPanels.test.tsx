@@ -68,16 +68,56 @@ describe('AuditoryPanel', () => {
 });
 
 describe('TactilePanel', () => {
-  it('updates tactile settings and renders local bridge guidance', () => {
+  it('updates tactile settings and renders Joy-Con bridge controls', () => {
     const tactile: TactileSettings = { ...DEFAULT_SESSION_STATE.tactile };
     const onChange = vi.fn();
-    const { container } = renderWithI18n(<TactilePanel tactile={tactile} onChange={onChange} />);
+    const onBridgeUrlChange = vi.fn();
+    const onRefresh = vi.fn();
+    const onTestPulse = vi.fn();
+    const onNeutral = vi.fn();
+    const { container } = renderWithI18n(
+      <TactilePanel
+        tactile={tactile}
+        onChange={onChange}
+        bridgeUrl="http://127.0.0.1:5174"
+        bridgeUrlValid
+        bridgeOnline
+        devices={[
+          { side: 'left', product: 'Joy-Con (L)', battery: { percent: 75 } },
+          { side: 'right', product: 'Joy-Con (R)', battery: null },
+        ]}
+        leftConnected
+        rightConnected
+        error={null}
+        onBridgeUrlChange={onBridgeUrlChange}
+        onRefresh={onRefresh}
+        onTestPulse={onTestPulse}
+        onNeutral={onNeutral}
+      />,
+    );
 
-    expect(screen.getByText('Joy-Con tactile output will be configured from this browser through the local Joy-Con bridge.')).toBeInTheDocument();
+    expect(screen.getByText('Joy-Con output requires the local Joy-Con bridge running on this computer.')).toBeInTheDocument();
+    expect(screen.getByText('Bridge connected')).toBeInTheDocument();
+    expect(screen.getByText('Left Joy-Con')).toBeInTheDocument();
+    expect(screen.getByText('Right Joy-Con')).toBeInTheDocument();
+    expect(screen.getByText('75%')).toBeInTheDocument();
 
     const enabled = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
     fireEvent.click(enabled);
     expect(onChange).toHaveBeenLastCalledWith({ ...tactile, enabled: true });
+
+    fireEvent.change(screen.getByLabelText('Local bridge URL'), { target: { value: 'http://localhost:5174' } });
+    expect(onBridgeUrlChange).toHaveBeenLastCalledWith('http://localhost:5174');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh devices' }));
+    expect(onRefresh).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'High' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Test left' }));
+    expect(onTestPulse).toHaveBeenLastCalledWith({ side: 'left', intensity: 'high', duration: 120, repeats: 1 });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop rumble' }));
+    expect(onNeutral).toHaveBeenLastCalledWith('both');
 
     fireEvent.change(screen.getByLabelText('Pulse duration: 120 ms'), { target: { value: '240' } });
     expect(onChange).toHaveBeenLastCalledWith({ ...tactile, pulseDurationMs: 240 });

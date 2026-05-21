@@ -1,9 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_PREFERENCES } from '../domain/defaults';
 import type { SessionPreferences } from '../domain/sessionTypes';
-import { getOrCreateLocalId, loadLocalPreferences, saveLocalPreferences } from './localStorage';
+import {
+  DEFAULT_JOYCON_BRIDGE_URL,
+  getJoyConBridgeUrl,
+  getOrCreateLocalId,
+  isValidJoyConBridgeUrl,
+  loadLocalPreferences,
+  normalizeJoyConBridgeUrl,
+  saveJoyConBridgeUrl,
+  saveLocalPreferences,
+} from './localStorage';
 
 const preferencesKey = 'open-bistimulation.preferences.v1';
+const joyConBridgeUrlKey = 'open-bistimulation.joyconBridgeUrl.v1';
 
 interface PreferencesOverrides {
   visual?: Partial<SessionPreferences['visual']>;
@@ -82,5 +92,23 @@ describe('localStorage helpers', () => {
 
     expect(getOrCreateLocalId('device-id')).toBe('00000000-0000-4000-8000-000000000000');
     expect(localStorage.getItem('device-id')).toBe('00000000-0000-4000-8000-000000000000');
+  });
+
+  it('loads and saves the local Joy-Con bridge URL', () => {
+    expect(getJoyConBridgeUrl()).toBe(DEFAULT_JOYCON_BRIDGE_URL);
+
+    saveJoyConBridgeUrl('http://localhost:5174/');
+
+    expect(localStorage.getItem(joyConBridgeUrlKey)).toBe('http://localhost:5174');
+    expect(getJoyConBridgeUrl()).toBe('http://localhost:5174');
+  });
+
+  it('rejects malformed Joy-Con bridge URLs and falls back to the default', () => {
+    expect(isValidJoyConBridgeUrl('http://127.0.0.1:5174')).toBe(true);
+    expect(normalizeJoyConBridgeUrl('ftp://127.0.0.1:5174')).toBeNull();
+    expect(() => saveJoyConBridgeUrl('not-a-url')).toThrow('Invalid Joy-Con bridge URL.');
+
+    localStorage.setItem(joyConBridgeUrlKey, 'not-a-url');
+    expect(getJoyConBridgeUrl()).toBe(DEFAULT_JOYCON_BRIDGE_URL);
   });
 });

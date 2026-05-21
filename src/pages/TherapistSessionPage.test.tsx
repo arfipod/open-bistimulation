@@ -12,6 +12,10 @@ const mocks = vi.hoisted(() => ({
   saveTherapistPreferences: vi.fn(),
   endBlsSession: vi.fn(),
   saveLocalPreferences: vi.fn(),
+  saveJoyConBridgeUrl: vi.fn(),
+  refreshJoyConBridge: vi.fn(),
+  testJoyConPulse: vi.fn(),
+  neutralJoyCon: vi.fn(),
   send: vi.fn(),
   onMessage: null as ((message: SessionBroadcastMessage) => void) | null,
 }));
@@ -26,6 +30,9 @@ vi.mock('../lib/sessionApi', () => ({
 
 vi.mock('../lib/localStorage', () => ({
   saveLocalPreferences: mocks.saveLocalPreferences,
+  getJoyConBridgeUrl: () => 'http://127.0.0.1:5174',
+  isValidJoyConBridgeUrl: (url: string) => url.startsWith('http://') || url.startsWith('https://'),
+  saveJoyConBridgeUrl: mocks.saveJoyConBridgeUrl,
 }));
 
 vi.mock('../hooks/useServerClock', () => ({
@@ -45,6 +52,19 @@ vi.mock('../hooks/useTactilePulseEmitter', () => ({
 
 vi.mock('../hooks/useAudioBls', () => ({
   useAudioBls: vi.fn(),
+}));
+
+vi.mock('../hooks/useJoyConBridge', () => ({
+  useJoyConBridge: () => ({
+    bridgeOnline: true,
+    devices: [{ side: 'left', product: 'Joy-Con (L)' }],
+    leftConnected: true,
+    rightConnected: false,
+    error: null,
+    refresh: mocks.refreshJoyConBridge,
+    testPulse: mocks.testJoyConPulse,
+    neutral: mocks.neutralJoyCon,
+  }),
 }));
 
 vi.mock('../hooks/useTicker', () => ({
@@ -154,6 +174,10 @@ describe('TherapistSessionPage', () => {
     mocks.saveTherapistPreferences.mockReset().mockResolvedValue(undefined);
     mocks.endBlsSession.mockReset().mockResolvedValue(undefined);
     mocks.saveLocalPreferences.mockReset();
+    mocks.saveJoyConBridgeUrl.mockReset();
+    mocks.refreshJoyConBridge.mockReset().mockResolvedValue(undefined);
+    mocks.testJoyConPulse.mockReset().mockResolvedValue(undefined);
+    mocks.neutralJoyCon.mockReset().mockResolvedValue(undefined);
     mocks.send.mockReset().mockResolvedValue(undefined);
     mocks.onMessage = null;
     vi.spyOn(Date, 'now').mockReturnValue(0);
@@ -278,7 +302,7 @@ describe('TherapistSessionPage', () => {
     expect(await screen.findByText('Preferences saved locally and in Supabase for this session.')).toBeInTheDocument();
   });
 
-  it('updates client/device presence from realtime messages and completes invalid stopping states', async () => {
+  it('updates client presence from realtime messages and completes invalid stopping states', async () => {
     mocks.getBlsSession.mockResolvedValue({
       role: 'therapist',
       state: makeState({ status: 'stopping', motionStartedAtMs: null }),
