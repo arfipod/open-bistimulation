@@ -123,7 +123,7 @@ describe('session API', () => {
     await expect(api.getBlsSession('session-id', 'bad-token')).rejects.toThrow('Session not found or token is invalid.');
   });
 
-  it('saves state, preferences, ending, server time, and tactile devices through the expected RPCs', async () => {
+  it('saves state, preferences, ending, and server time through the expected RPCs', async () => {
     const rpc = vi.fn((name: string) => {
       if (name === 'get_server_time_ms') {
         return Promise.resolve({ data: '123456', error: null });
@@ -137,9 +137,6 @@ describe('session API', () => {
     await expect(api.saveTherapistPreferences('session-id', 'therapist-token', DEFAULT_PREFERENCES)).resolves.toBeUndefined();
     await expect(api.endBlsSession('session-id', 'therapist-token')).resolves.toBeUndefined();
     await expect(api.getServerTimeMs()).resolves.toBe(123456);
-    await expect(
-      api.upsertTactileDevice('session-id', 'client-token', 'left', 'device-id', 'Left phone', true),
-    ).resolves.toBeUndefined();
 
     expect(rpc).toHaveBeenCalledWith('therapist_save_state', {
       _session_id: 'session-id',
@@ -156,14 +153,6 @@ describe('session API', () => {
       _therapist_token: 'therapist-token',
     });
     expect(rpc).toHaveBeenCalledWith('get_server_time_ms');
-    expect(rpc).toHaveBeenCalledWith('upsert_tactile_device', {
-      _session_id: 'session-id',
-      _client_token: 'client-token',
-      _side: 'left',
-      _device_id: 'device-id',
-      _label: 'Left phone',
-      _connected: true,
-    });
   });
 
   it('propagates mutation RPC errors', async () => {

@@ -11,7 +11,6 @@ Top-level dependencies declared in `package.json`:
 | Package | License |
 | --- | --- |
 | `@supabase/supabase-js` | MIT |
-| `qrcode` | MIT |
 | `react` | MIT |
 | `react-dom` | MIT |
 
@@ -22,7 +21,6 @@ Top-level development dependencies declared in `package.json`:
 | `@testing-library/jest-dom` | MIT |
 | `@testing-library/react` | MIT |
 | `@testing-library/user-event` | MIT |
-| `@types/qrcode` | MIT |
 | `@types/react` | MIT |
 | `@types/react-dom` | MIT |
 | `@vitejs/plugin-react` | MIT |

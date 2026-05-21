@@ -316,8 +316,7 @@ html:fullscreen .app-shell-client .app-footer {
 }
 
 .hero h1,
-.error-panel h1,
-.tactile-device-card h1 {
+.error-panel h1 {
   margin: 0 0 14px;
   font-size: clamp(2.2rem, 8vw, 4.8rem);
   line-height: 0.95;
@@ -412,8 +411,7 @@ html:fullscreen .app-shell-client .app-footer {
 
 .warning-box,
 .error-box,
-.success-box,
-.support-box {
+.success-box {
   margin: 14px 0;
   padding: 14px 16px;
   border-radius: 10px;
@@ -530,8 +528,7 @@ html:fullscreen .app-shell-client .app-footer {
 }
 
 .panel-header h2,
-.client-preview h2,
-.pairing-drawer h2 {
+.client-preview h2 {
   margin: 0;
   font-size: 1.45rem;
   letter-spacing: -0.04em;
@@ -704,11 +701,6 @@ input[type='range'] {
   align-items: center;
   gap: 8px;
   margin-top: 16px;
-}
-
-.device-status-grid {
-  display: grid;
-  gap: 8px;
 }
 
 .connection-badge {
@@ -958,107 +950,6 @@ input[type='range'] {
   margin-top: 0;
 }
 
-.pairing-drawer {
-  position: fixed;
-  left: 18px;
-  bottom: 18px;
-  z-index: 25;
-  width: min(760px, calc(100% - 36px));
-  max-height: calc(100% - 36px);
-  overflow: auto;
-  padding: 20px;
-}
-
-.pairing-drawer p {
-  color: var(--muted);
-}
-
-.qr-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.qr-card {
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: #f8fafc;
-  text-align: center;
-}
-
-.qr-card h3 {
-  margin-top: 0;
-}
-
-.qr-card img,
-.qr-placeholder {
-  width: 180px;
-  height: 180px;
-  margin: 0 auto;
-}
-
-.qr-placeholder {
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  background: #e2e8f0;
-  color: var(--muted);
-}
-
-.tactile-device-card {
-  width: min(620px, 100%);
-  padding: clamp(22px, 5vw, 42px);
-}
-
-.tactile-device-card h1 {
-  font-size: clamp(2rem, 8vw, 4rem);
-}
-
-.support-box.ok {
-  color: #365a7c;
-  background: #dceaf6;
-  border: 1px solid #9bbbd6;
-}
-
-.support-box.bad {
-  color: #7f1d1d;
-  background: var(--danger-soft);
-  border: 1px solid #fecaca;
-}
-
-.device-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 18px 0;
-}
-
-.device-metrics div {
-  padding: 14px;
-  border-radius: 10px;
-  background: #f8fafc;
-}
-
-.device-metrics span,
-.device-metrics strong {
-  display: block;
-}
-
-.device-metrics span {
-  color: var(--muted);
-  font-size: 0.84rem;
-  font-weight: 800;
-}
-
-.device-metrics strong {
-  margin-top: 4px;
-}
-
-.tactile-actions {
-  margin-top: 18px;
-}
-
 @media (max-width: 1120px) {
   .therapist-grid {
     grid-template-columns: 1fr 1fr;
@@ -1081,8 +972,6 @@ input[type='range'] {
 
   .therapist-grid,
   .hero-grid,
-  .qr-grid,
-  .device-metrics,
   .round-timer {
     grid-template-columns: 1fr;
   }
@@ -1101,14 +990,6 @@ input[type='range'] {
   .client-topbar > * {
     flex: 1 1 auto;
   }
-
-  .pairing-drawer {
-    left: 12px;
-    right: 12px;
-    bottom: 80px;
-    width: auto;
-  }
-
   .support-button {
     right: 12px;
     bottom: 12px;

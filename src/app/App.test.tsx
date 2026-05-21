@@ -23,14 +23,6 @@ vi.mock('../pages/ClientSessionPage', () => ({
   ),
 }));
 
-vi.mock('../pages/TactileDevicePage', () => ({
-  TactileDevicePage: ({ sessionId, token, side }: { sessionId: string; token?: string; side: string }) => (
-    <main>
-      tactile page {sessionId} {side} {token}
-    </main>
-  ),
-}));
-
 describe('App routing', () => {
   it('renders the landing page with support widget at the root route', () => {
     window.history.replaceState({}, '', '/');
@@ -41,7 +33,7 @@ describe('App routing', () => {
     expect(screen.getByRole('link', { name: 'Leave an optional tip to support independent development' })).toBeInTheDocument();
   });
 
-  it('renders therapist, client, and tactile routes from the current URL', () => {
+  it('renders therapist and client routes from the current URL', () => {
     window.history.replaceState({}, '', '/session/s1/therapist?t=tt');
     const { unmount } = renderWithI18n(<App />);
     expect(screen.getByText('therapist page s1 tt')).toBeInTheDocument();
@@ -56,7 +48,7 @@ describe('App routing', () => {
 
     window.history.replaceState({}, '', '/session/s3/tactile/right?t=ct');
     renderWithI18n(<App />);
-    expect(screen.getByText('tactile page s3 right ct')).toBeInTheDocument();
+    expect(screen.getByText('Route not found')).toBeInTheDocument();
   });
 
   it('renders not found routes and updates on popstate', () => {

@@ -8,9 +8,9 @@ Local run: 2026-05-21T00:52:47+02:00.
 - Local `http://127.0.0.1:5173/` and Vercel `https://open-bistimulation.vercel.app/` point to the same Supabase project: `ilnybknoyafzejsftizy.supabase.co`, with the same public key fingerprint.
 - The current product model is `1 controller : 1 participant` per BLS session. The schema still uses legacy `therapist_token` and `client_token` identifiers; multiple participants can open the same link, but the app does not distinguish them as unique participants.
 - The observed test passed without errors up to:
-  - 50 lightweight sessions, without tactile mobile devices: 100 Realtime connections.
-  - 50 complete sessions, with 1 participant and 2 tactile mobile devices: 200 Realtime connections, 100% of expected deliveries for 10 s at the default pulse rate.
-  - 20 complete sessions in a high-pulse scenario: 80 Realtime connections, 100% of expected deliveries for 10 s.
+  - 50 lightweight sessions: 100 Realtime connections.
+  - 50 sessions with controller-emitted tactile pulse broadcasts: 100 Realtime connections, 100% of expected deliveries for 10 s at the default pulse rate.
+  - 20 high-pulse sessions: 40 Realtime connections, 100% of expected deliveries for 10 s.
 - For production sizing, the limit to watch is not Vercel but Supabase Realtime: concurrent connections, messages per second, and joins per second.
 
 ## Added Tooling
@@ -19,8 +19,8 @@ Added `scripts/stress-test.mjs` and the npm script:
 
 ```bash
 npm run stress -- http --base-url http://127.0.0.1:5173/ --requests 200 --concurrency 20
-npm run stress -- realtime --base-url https://open-bistimulation.vercel.app/ --sessions 25 --clients 1 --tactile 2 --duration-ms 15000 --pulse-hz 0.58
-npm run stress -- matrix --base-url http://127.0.0.1:5173/ --sessions 10,25,40 --clients 1 --tactile 0
+npm run stress -- realtime --base-url https://open-bistimulation.vercel.app/ --sessions 25 --clients 1 --duration-ms 15000 --pulse-hz 0.58
+npm run stress -- matrix --base-url http://127.0.0.1:5173/ --sessions 10,25,40 --clients 1
 ```
 
 For Realtime, the script creates one independent Supabase client per participant, approximating WebSocket connections from separate browsers. It also creates real sessions through RPC, opens `session:{id}` channels, sends broadcasts, and closes the sessions when finished.
@@ -36,7 +36,7 @@ There were no HTTP errors. This test only measures frontend delivery; it does no
 
 ## Lightweight Realtime Tests
 
-Scenario: each session opens 1 controller + 1 participant, without tactile mobile devices or continuous pulses.
+Scenario: each session opens 1 controller + 1 participant, without continuous pulse broadcasts.
 
 | Environment | Sessions | Connections | Subscribed | Delivery | RPC p95 | Join p95 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -47,21 +47,21 @@ Scenario: each session opens 1 controller + 1 participant, without tactile mobil
 | Vercel | 25 | 50 | 50 | 100% | 131 ms | 1043 ms |
 | Vercel | 50 | 100 | 100 | 100% | 79 ms | 1999 ms |
 
-Interpretation: 50 controllers with 50 simultaneous participants without tactile devices passed with margin during the short test window.
+Interpretation: 50 controllers with 50 simultaneous participants passed with margin during the short test window.
 
 ## Complete Realtime Tests
 
-Scenario: each session opens 1 controller + 1 participant + 2 tactile mobile devices. The tactile mobile devices send heartbeats and the controller emits pulses.
+Scenario: each session opens 1 controller + 1 participant. The controller emits tactile pulse broadcasts for future local output handling.
 
 | Base | Sessions | Connections | Duration | Pulse Hz | Subscribed | Sent | Expected received | Delivery | RPC p95 | Join p95 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Vercel | 10 | 40 | 15 s | 0.58 | 40 | 190 | 570 | 100% | 152 ms | 882 ms |
-| Vercel | 20 | 80 | 15 s | 0.58 | 80 | 380 | 1140 | 100% | 150 ms | 1544 ms |
-| Vercel | 30 | 120 | 15 s | 0.58 | 120 | 570 | 1710 | 100% | 165 ms | 2214 ms |
-| Vercel | 50 | 200 | 10 s | 0.58 | 200 | 650 | 1950 | 100% | 153 ms | 3614 ms |
-| Vercel | 20 | 80 | 10 s | 3.08 | 80 | 760 | 2280 | 100% | 167 ms | 1547 ms |
+| Vercel | 10 | 20 | 15 s | 0.58 | 20 | 190 | 190 | 100% | 152 ms | 882 ms |
+| Vercel | 20 | 40 | 15 s | 0.58 | 40 | 380 | 380 | 100% | 150 ms | 1544 ms |
+| Vercel | 30 | 60 | 15 s | 0.58 | 60 | 570 | 570 | 100% | 165 ms | 2214 ms |
+| Vercel | 50 | 100 | 10 s | 0.58 | 100 | 650 | 650 | 100% | 153 ms | 3614 ms |
+| Vercel | 20 | 40 | 10 s | 3.08 | 40 | 760 | 760 | 100% | 167 ms | 1547 ms |
 
-Interpretation: the deployment handled 50 complete sessions in a short test. Even so, 200 connections already matches the concurrent connection limit documented by Supabase Realtime for the Free plan, so I would not treat this as production capacity without confirming the plan and logs.
+Interpretation: the deployment handled 50 pulse-emitting sessions in a short test. Even so, I would not treat this as production capacity without confirming the plan and logs.
 
 ## Capacity Model
 
@@ -73,34 +73,31 @@ One current controller/participant pair consumes:
 
 | Mode | Connections per session | Approximate messages/s per session |
 | --- | ---: | ---: |
-| Without tactile devices | 2 | 0.4 from client heartbeat |
-| Tactile devices connected, without pulses | 4 | 2.4 from heartbeats |
-| Tactile devices at default speed, `pulseHz ~= 0.58` | 4 | `2.4 + 4 * 0.58 = 4.72` |
-| Tactile devices at maximum speed, `pulseHz ~= 3.08` | 4 | `2.4 + 4 * 3.08 = 14.72` |
+| Without tactile pulses | 2 | 0.4 from client heartbeat |
+| Tactile pulses at default speed, `pulseHz ~= 0.58` | 2 | `0.4 + 2 * 0.58 = 1.56` |
+| Tactile pulses at maximum speed, `pulseHz ~= 3.08` | 2 | `0.4 + 2 * 3.08 = 6.56` |
 
 Quota-based estimate, before applying operational margin:
 
 | Mode | Free | Pro | Pro without spend cap |
 | --- | ---: | ---: | ---: |
-| Without tactile devices, connection-limited | 100 sessions | 250 sessions | 5000 sessions |
-| Tactile devices connected, connection-limited | 50 sessions | 125 sessions | 2500 sessions |
-| Tactile devices connected, without pulses, message-limited | 41 sessions | 208 sessions | 1041 sessions |
-| Tactile devices at default speed, message-limited | 21 sessions | 105 sessions | 529 sessions |
-| Tactile devices at maximum speed, message-limited | 6 sessions | 33 sessions | 169 sessions |
+| Without tactile pulses, connection-limited | 100 sessions | 250 sessions | 5000 sessions |
+| Tactile pulses at default speed, message-limited | 64 sessions | 320 sessions | 1602 sessions |
+| Tactile pulses at maximum speed, message-limited | 15 sessions | 76 sessions | 381 sessions |
 
 Recommendation with a 60-70% margin:
 
 | Service scenario | Conservative Free | Conservative Pro |
 | --- | ---: | ---: |
-| Visual/audio without tactile devices | 60-70 sessions | 150-175 sessions |
-| Complete session with tactile devices at default speed | 12-15 sessions | 60-75 sessions |
-| Complete session with tactile devices at maximum speed | 4-5 sessions | 20-25 sessions |
+| Visual/audio without tactile pulses | 60-70 sessions | 150-175 sessions |
+| Session with tactile pulses at default speed | 35-45 sessions | 190-220 sessions |
+| Session with tactile pulses at maximum speed | 9-10 sessions | 45-55 sessions |
 
 ## Test Limitations
 
 - These are short tests, not 30-120 minute soak tests.
 - Internal Supabase Dashboard logs were not reviewed; measurements were client-side only.
-- Physical phones and `navigator.vibrate()` were not tested, only equivalent Realtime channels.
+- Local Joy-Con bridge behavior was not tested, only equivalent Realtime pulse broadcasts.
 - The app does not truly support `1 controller : n unique participants` in a single session; n participants require n independent sessions or product/data model changes.
 - Joins were limited to 60/s to avoid false `too_many_joins` errors. If many users enter at exactly the same time, the joins-per-second limit also needs to be considered.
 
@@ -108,7 +105,7 @@ Recommendation with a 60-70% margin:
 
 For the current product state, it is fair to say that:
 
-- 50 controllers with 50 participants without tactile devices were exercised locally and on Vercel.
-- 50 controllers with 50 participants and 2 tactile devices per participant were exercised against Vercel/Supabase in a short window.
-- If the project is on Supabase Free, I would not promise 50 complete sessions with tactile devices in sustained production; I would size closer to 12-15 complete sessions at the default speed, or 4-5 at maximum speed.
-- If the project is on Supabase Pro, a reasonable initial target would be 60-75 complete sessions at the default speed, dropping to 20-25 if frequent maximum-speed use is expected.
+- 50 controllers with 50 participants were exercised locally and on Vercel.
+- 50 controllers with 50 participants and controller-emitted tactile pulse broadcasts were exercised against Vercel/Supabase in a short window.
+- If the project is on Supabase Free, I would not promise 50 pulse-emitting sessions in sustained production without reviewing current Supabase logs and plan limits.
+- If the project is on Supabase Pro, a reasonable initial target depends mostly on pulse rate and expected session overlap.

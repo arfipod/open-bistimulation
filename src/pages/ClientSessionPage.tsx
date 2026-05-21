@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { SessionBroadcastMessage, SessionState } from '../domain/sessionTypes';
 import { getBlsSession } from '../lib/sessionApi';
 import { getServerNowMs } from '../domain/motion';
-import { tactileUrl } from '../lib/url';
 import { useI18n } from '../lib/i18n';
 import { useAudioBls } from '../hooks/useAudioBls';
 import { useServerClock } from '../hooks/useServerClock';
@@ -10,7 +9,6 @@ import { useSessionRealtime } from '../hooks/useSessionRealtime';
 import { ErrorView } from '../components/ErrorView';
 import { LoadingView } from '../components/LoadingView';
 import { LanguageToggle } from '../components/LanguageToggle';
-import { QRCodeCard } from '../components/QRCodeCard';
 import { StimulusStage } from '../components/StimulusStage';
 
 interface ClientSessionPageProps {
@@ -22,7 +20,6 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
   const [state, setState] = useState<SessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
-  const [showPairing, setShowPairing] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const clock = useServerClock();
@@ -116,17 +113,6 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
     void document.exitFullscreen().catch(() => undefined);
   }, []);
 
-  const tactileLinks = useMemo(() => {
-    if (!token) {
-      return null;
-    }
-
-    return {
-      left: tactileUrl(sessionId, token, 'left'),
-      right: tactileUrl(sessionId, token, 'right'),
-    };
-  }, [sessionId, token]);
-
   if (error) {
     return <ErrorView message={error} />;
   }
@@ -155,9 +141,6 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
           <button className="secondary-button" type="button" onClick={() => setAudioUnlocked(true)}>
             {audioUnlocked ? t('client.audioEnabled') : t('client.enableAudio')}
           </button>
-          <button className="secondary-button" type="button" onClick={() => setShowPairing((current) => !current)}>
-            {showPairing ? t('client.hideTactileQr') : t('client.tactileQr')}
-          </button>
           <button className="secondary-button" type="button" onClick={enterFullscreen}>
             {t('client.fullscreen')}
           </button>
@@ -173,19 +156,6 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
             {t('client.enterEnableAudio')}
           </button>
         </div>
-      ) : null}
-
-      {!isFullscreen && showPairing && tactileLinks ? (
-        <section className="pairing-drawer panel">
-          <header>
-            <h2>{t('client.pairTactile')}</h2>
-            <p>{t('client.pairTactileBody')}</p>
-          </header>
-          <div className="qr-grid">
-            <QRCodeCard title={t('common.leftPhone')} url={tactileLinks.left} helper={t('client.leftPhoneHelper')} />
-            <QRCodeCard title={t('common.rightPhone')} url={tactileLinks.right} helper={t('client.rightPhoneHelper')} />
-          </div>
-        </section>
       ) : null}
     </main>
   );

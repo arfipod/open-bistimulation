@@ -1,22 +1,11 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SESSION_STATE } from '../domain/defaults';
-import type { AudioSettings, TactileDeviceStatus, TactileSettings, VisualSettings } from '../domain/sessionTypes';
+import type { AudioSettings, TactileSettings, VisualSettings } from '../domain/sessionTypes';
 import { renderWithI18n } from '../test/render';
 import { AuditoryPanel } from './AuditoryPanel';
 import { TactilePanel } from './TactilePanel';
 import { VisualPanel } from './VisualPanel';
-
-function deviceStatus(overrides: Partial<TactileDeviceStatus>): TactileDeviceStatus {
-  return {
-    side: overrides.side ?? 'left',
-    deviceId: null,
-    label: null,
-    connected: false,
-    lastSeenAtMs: null,
-    ...overrides,
-  };
-}
 
 describe('VisualPanel', () => {
   it('updates visual settings from toggles, swatches, direction, order, position, and sliders', () => {
@@ -79,20 +68,12 @@ describe('AuditoryPanel', () => {
 });
 
 describe('TactilePanel', () => {
-  it('updates tactile settings and renders connection/unsupported state', () => {
+  it('updates tactile settings and renders local bridge guidance', () => {
     const tactile: TactileSettings = { ...DEFAULT_SESSION_STATE.tactile };
     const onChange = vi.fn();
-    const { container } = renderWithI18n(
-      <TactilePanel
-        tactile={tactile}
-        leftDevice={deviceStatus({ side: 'left', connected: true, unsupported: true })}
-        rightDevice={deviceStatus({ side: 'right', connected: false })}
-        onChange={onChange}
-      />,
-    );
+    const { container } = renderWithI18n(<TactilePanel tactile={tactile} onChange={onChange} />);
 
-    expect(screen.getByText('Left device without vibration')).toBeInTheDocument();
-    expect(screen.getByText('Right device')).toBeInTheDocument();
+    expect(screen.getByText('Joy-Con tactile output will be configured from this browser through the local Joy-Con bridge.')).toBeInTheDocument();
 
     const enabled = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
     fireEvent.click(enabled);

@@ -1,5 +1,5 @@
 import { DEFAULT_PREFERENCES, DEFAULT_SESSION_STATE } from '../domain/defaults';
-import type { SessionPreferences, SessionRecord, SessionRole, SessionState, TactileSide } from '../domain/sessionTypes';
+import type { SessionPreferences, SessionRecord, SessionRole, SessionState } from '../domain/sessionTypes';
 import { isSupabaseConfigured, supabase } from './supabase';
 
 interface CreateSessionRow {
@@ -143,28 +143,4 @@ export async function getServerTimeMs(): Promise<number> {
   }
 
   return Number(data);
-}
-
-export async function upsertTactileDevice(
-  sessionId: string,
-  clientToken: string,
-  side: TactileSide,
-  deviceId: string,
-  label: string,
-  connected: boolean,
-): Promise<void> {
-  ensureConfigured();
-
-  const { error } = await supabase.rpc('upsert_tactile_device', {
-    _session_id: sessionId,
-    _client_token: clientToken,
-    _side: side,
-    _device_id: deviceId,
-    _label: label,
-    _connected: connected,
-  });
-
-  if (error) {
-    throw error;
-  }
 }

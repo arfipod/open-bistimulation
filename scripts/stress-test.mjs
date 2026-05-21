@@ -441,21 +441,6 @@ async function saveTherapistState(client, sessionId, therapistToken, state) {
   }
 }
 
-async function upsertTactileDevice(client, sessionId, clientToken, side, deviceId, label, connected) {
-  const { error } = await client.rpc('upsert_tactile_device', {
-    _session_id: sessionId,
-    _client_token: clientToken,
-    _side: side,
-    _device_id: deviceId,
-    _label: label,
-    _connected: connected,
-  });
-
-  if (error) {
-    throw error;
-  }
-}
-
 async function endBlsSession(client, sessionId, therapistToken) {
   const { error } = await client.rpc('end_bls_session', {
     _session_id: sessionId,
@@ -573,22 +558,9 @@ async function teardownParticipants(participants) {
   );
 }
 
-async function cleanupSessions(client, sessions, tactileDevices) {
+async function cleanupSessions(client, sessions) {
   await Promise.allSettled(
     sessions.map(async (session) => {
-      for (let index = 0; index < tactileDevices; index += 1) {
-        const side = sideFor(index);
-        await upsertTactileDevice(
-          client,
-          session.id,
-          session.clientToken,
-          side,
-          `stress-${side}-${index}`,
-          `Stress ${side}`,
-          false,
-        ).catch(() => undefined);
-      }
-
       await endBlsSession(client, session.id, session.therapistToken);
     }),
   );
@@ -598,7 +570,6 @@ async function runRealtimeScenario({
   baseUrl,
   sessionsCount,
   clientsPerSession,
-  tactileDevices,
   durationMs,
   pulseHz,
   setupConcurrency,
@@ -617,22 +588,6 @@ async function runRealtimeScenario({
     for (let index = 0; index < clientsPerSession; index += 1) {
       rpcJobs.push(() => getBlsSession(setupClient, session.id, session.clientToken));
     }
-
-    for (let index = 0; index < tactileDevices; index += 1) {
-      const side = sideFor(index);
-      rpcJobs.push(async () => {
-        await getBlsSession(setupClient, session.id, session.clientToken);
-        await upsertTactileDevice(
-          setupClient,
-          session.id,
-          session.clientToken,
-          side,
-          `stress-${side}-${index}`,
-          `Stress ${side}`,
-          true,
-        );
-      });
-    }
   }
 
   const rpcResults = await runPool(rpcJobs, setupConcurrency, (job) => timed(job));
@@ -645,7 +600,6 @@ async function runRealtimeScenario({
       session,
       therapist: null,
       clients: [],
-      tactile: [],
     };
 
     const therapist = subscribeParticipant({
@@ -674,20 +628,6 @@ async function runRealtimeScenario({
       }
     }
 
-    for (let index = 0; index < tactileDevices; index += 1) {
-      const tactile = subscribeParticipant({
-        config,
-        sessionId: session.id,
-        role: 'tactile',
-        label: `tactile-${sessionIndex}-${index}`,
-      });
-      participants.push(tactile);
-      group.tactile.push({ participant: tactile, side: sideFor(index), deviceId: `stress-${sideFor(index)}-${index}` });
-      if (joinDelayMs) {
-        await sleep(joinDelayMs);
-      }
-    }
-
     groups.push(group);
   }
 
@@ -704,9 +644,7 @@ async function runRealtimeScenario({
   let sequence = 0;
 
   function expectedFor(group) {
-    const connectedInGroup = [group.therapist, ...group.clients, ...group.tactile.map((item) => item.participant)].filter((participant) =>
-      subscribedParticipants.includes(participant),
-    );
+    const connectedInGroup = [group.therapist, ...group.clients].filter((participant) => subscribedParticipants.includes(participant));
     return Math.max(0, connectedInGroup.length - 1);
   }
 
@@ -770,15 +708,6 @@ async function runRealtimeScenario({
           });
         }
 
-        for (const tactile of group.tactile) {
-          await sendAndCount(tactile.participant, group, {
-            kind: 'TACTILE_DEVICE_HEARTBEAT',
-            side: tactile.side,
-            deviceId: tactile.deviceId,
-            emittedAtMs: Date.now(),
-            supported: true,
-          });
-        }
       }
 
       nextHeartbeatAt += 5000;
@@ -798,7 +727,7 @@ async function runRealtimeScenario({
   }
 
   await teardownParticipants(participants);
-  await cleanupSessions(setupClient, sessions, tactileDevices);
+  await cleanupSessions(setupClient, sessions);
   setupClient.realtime.disconnect();
 
   return {
@@ -808,8 +737,7 @@ async function runRealtimeScenario({
     sessionsRequested: sessionsCount,
     sessionsCreated: sessions.length,
     clientsPerSession,
-    tactileDevicesPerSession: tactileDevices,
-    participantsExpected: sessions.length * (1 + clientsPerSession + tactileDevices),
+    participantsExpected: sessions.length * (1 + clientsPerSession),
     participantsSubscribed: subscribedParticipants.length,
     durationMs,
     pulseHz,
@@ -848,7 +776,6 @@ async function main() {
       baseUrl: args.baseUrl || args.base || DEFAULT_LOCAL_URL,
       sessionsCount: toInt(args.sessions, 10),
       clientsPerSession: toInt(args.clientsPerSession || args.clients, 1),
-      tactileDevices: toInt(args.tactileDevices || args.tactile, 0),
       durationMs: toInt(args.durationMs, 10_000),
       pulseHz: toFloat(args.pulseHz, 0),
       setupConcurrency: toInt(args.setupConcurrency, 10),
@@ -872,7 +799,6 @@ async function main() {
           baseUrl,
           sessionsCount,
           clientsPerSession: toInt(args.clientsPerSession || args.clients, 1),
-          tactileDevices: toInt(args.tactileDevices || args.tactile, 0),
           durationMs: toInt(args.durationMs, 10_000),
           pulseHz: toFloat(args.pulseHz, 0),
           setupConcurrency: toInt(args.setupConcurrency, 10),
@@ -887,8 +813,8 @@ async function main() {
 
   console.log(`Usage:
   node scripts/stress-test.mjs http --base-url ${DEFAULT_LOCAL_URL} --requests 200 --concurrency 20
-  node scripts/stress-test.mjs realtime --base-url ${DEFAULT_VERCEL_URL} --sessions 25 --clients 1 --tactile 2 --duration-ms 15000 --pulse-hz 0.58
-  node scripts/stress-test.mjs matrix --base-url ${DEFAULT_LOCAL_URL} --sessions 10,25,40 --clients 1 --tactile 0
+  node scripts/stress-test.mjs realtime --base-url ${DEFAULT_VERCEL_URL} --sessions 25 --clients 1 --duration-ms 15000 --pulse-hz 0.58
+  node scripts/stress-test.mjs matrix --base-url ${DEFAULT_LOCAL_URL} --sessions 10,25,40 --clients 1
 
 Notes:
   - Realtime uses separate Supabase clients per participant to approximate separate browser WebSocket connections.

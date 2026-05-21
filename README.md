@@ -10,7 +10,7 @@ Open Bistimulation is not affiliated with, endorsed by, sponsored by, or connect
 
 - Controller page for cue settings, timing, session status, and participant invitation links.
 - Participant page for visual and audio cues.
-- Optional tactile pairing with two browser devices using QR codes and the Vibration API where supported.
+- Optional tactile settings are retained for a later local Joy-Con bridge integration.
 - English and Spanish UI copy.
 - Supabase RPC and Realtime backend with RLS denying direct anon table access.
 
@@ -49,8 +49,7 @@ The Vercel/Supabase aliases `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE
 The schema creates:
 
 - `public.sessions`
-- `public.tactile_devices`
-- RPC functions for creating sessions, loading sessions, saving controller state/preferences, ending sessions, registering tactile devices, and reading server time.
+- RPC functions for creating sessions, loading sessions, saving controller state/preferences, ending sessions, and reading server time.
 - RLS policies that deny direct table access from anon/authenticated roles. The app uses `SECURITY DEFINER` RPC functions instead.
 
 ## Data And Retention
@@ -61,8 +60,7 @@ Supabase stores the minimum operational data needed for the MVP:
 - Controller and participant tokens
 - Session state
 - Preferences
-- Tactile device metadata
-- Timestamps such as creation, update, expiry, end time, and last-seen values
+- Timestamps such as creation, update, expiry, and end time
 
 The app does not intentionally store participant names, professional notes, diagnostic labels, symptoms, care plans, or transcripts. Avoid placing sensitive identifying information into URLs, browser tools, issue reports, logs, or deployment settings.
 
@@ -82,7 +80,7 @@ select cron.schedule(
 );
 ```
 
-The cleanup deletes expired rows from `public.sessions`; linked tactile device rows are removed by `on delete cascade`.
+The cleanup deletes expired rows from `public.sessions`.
 
 ## Legal And Safety Limits
 

@@ -1,17 +1,13 @@
-import type { TactileDeviceStatus, TactileSettings } from '../domain/sessionTypes';
+import type { TactileSettings } from '../domain/sessionTypes';
 import { useI18n } from '../lib/i18n';
-import { ConnectionBadge } from './ConnectionBadge';
 
 interface TactilePanelProps {
   tactile: TactileSettings;
-  leftDevice: TactileDeviceStatus;
-  rightDevice: TactileDeviceStatus;
   onChange: (next: TactileSettings) => void;
 }
 
-export function TactilePanel({ tactile, leftDevice, rightDevice, onChange }: TactilePanelProps) {
+export function TactilePanel({ tactile, onChange }: TactilePanelProps) {
   const { t } = useI18n();
-  const unsupportedSuffix = t('tactile.withoutVibration');
 
   return (
     <section className="control-panel">
@@ -27,16 +23,7 @@ export function TactilePanel({ tactile, leftDevice, rightDevice, onChange }: Tac
         </label>
       </header>
 
-      <div className="device-status-grid">
-        <ConnectionBadge
-          connected={leftDevice.connected}
-          label={t('tactile.leftPhone', { suffix: leftDevice.unsupported ? unsupportedSuffix : '' })}
-        />
-        <ConnectionBadge
-          connected={rightDevice.connected}
-          label={t('tactile.rightPhone', { suffix: rightDevice.unsupported ? unsupportedSuffix : '' })}
-        />
-      </div>
+      <p className="panel-note">{t('tactile.bridgeNote')}</p>
 
       <div className="field-group">
         <label htmlFor="pulse-duration">{t('tactile.pulseDuration', { value: tactile.pulseDurationMs })}</label>

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { SessionBroadcastMessage, SessionPreferences, SessionState, TactileDeviceStatus, TactileSide } from '../domain/sessionTypes';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { SessionBroadcastMessage, SessionPreferences, SessionState } from '../domain/sessionTypes';
 import {
   completeStopPlayback,
   formatElapsedTime,
@@ -43,29 +43,10 @@ interface TherapistSessionPageProps {
 const STALE_AFTER_MS = 15_000;
 const DEFAULT_ROUND_DURATION_MS: number | null = null;
 
-function emptyDevice(side: TactileSide): TactileDeviceStatus {
-  return {
-    side,
-    deviceId: null,
-    label: null,
-    connected: false,
-    lastSeenAtMs: null,
-  };
-}
-
-function normalizeDevice(device: TactileDeviceStatus, nowMs: number): TactileDeviceStatus {
-  return {
-    ...device,
-    connected: device.lastSeenAtMs !== null && nowMs - device.lastSeenAtMs < STALE_AFTER_MS,
-  };
-}
-
 export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageProps) {
   const [state, setState] = useState<SessionState | null>(null);
   const [clientToken, setClientToken] = useState<string | null>(null);
   const [clientLastSeenAtMs, setClientLastSeenAtMs] = useState<number | null>(null);
-  const [leftDevice, setLeftDevice] = useState<TactileDeviceStatus>(() => emptyDevice('left'));
-  const [rightDevice, setRightDevice] = useState<TactileDeviceStatus>(() => emptyDevice('right'));
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -80,24 +61,6 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   const handleMessage = useCallback((message: SessionBroadcastMessage) => {
     if (message.kind === 'CLIENT_READY') {
       setClientLastSeenAtMs(Date.now());
-      return;
-    }
-
-    if (message.kind === 'TACTILE_DEVICE_READY' || message.kind === 'TACTILE_DEVICE_HEARTBEAT') {
-      const nextDevice: TactileDeviceStatus = {
-        side: message.side,
-        deviceId: message.deviceId,
-        label: message.kind === 'TACTILE_DEVICE_READY' ? message.label : null,
-        connected: true,
-        lastSeenAtMs: Date.now(),
-        unsupported: !message.supported,
-      };
-
-      if (message.side === 'left') {
-        setLeftDevice((current) => ({ ...current, ...nextDevice, label: nextDevice.label ?? current.label }));
-      } else {
-        setRightDevice((current) => ({ ...current, ...nextDevice, label: nextDevice.label ?? current.label }));
-      }
     }
   }, []);
 
@@ -226,8 +189,6 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   }, [clock.offsetMs, commitState, state, t]);
 
   const nowForStale = Date.now() + renderTick * 0;
-  const normalizedLeft = useMemo(() => normalizeDevice(leftDevice, nowForStale), [leftDevice, nowForStale]);
-  const normalizedRight = useMemo(() => normalizeDevice(rightDevice, nowForStale), [rightDevice, nowForStale]);
   const clientConnected = clientLastSeenAtMs !== null && nowForStale - clientLastSeenAtMs < STALE_AFTER_MS;
 
   if (error) {
@@ -355,8 +316,6 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
         <div className="right-column">
           <TactilePanel
             tactile={state.tactile}
-            leftDevice={normalizedLeft}
-            rightDevice={normalizedRight}
             onChange={(tactile) => patchState((current) => ({ ...current, tactile }))}
           />
           <section className="stats-panel panel" aria-label={t('controls.time')}>

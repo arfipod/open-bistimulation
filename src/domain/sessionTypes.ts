@@ -71,15 +71,6 @@ export interface ClientStatus {
   lastSeenAtMs: number | null;
 }
 
-export interface TactileDeviceStatus {
-  side: TactileSide;
-  deviceId: string | null;
-  label: string | null;
-  connected: boolean;
-  lastSeenAtMs: number | null;
-  unsupported?: boolean;
-}
-
 export type SessionBroadcastMessage =
   | {
       kind: 'STATE_UPDATED';
@@ -89,21 +80,6 @@ export type SessionBroadcastMessage =
   | {
       kind: 'CLIENT_READY';
       emittedAtMs: number;
-    }
-  | {
-      kind: 'TACTILE_DEVICE_READY';
-      side: TactileSide;
-      deviceId: string;
-      label: string;
-      emittedAtMs: number;
-      supported: boolean;
-    }
-  | {
-      kind: 'TACTILE_DEVICE_HEARTBEAT';
-      side: TactileSide;
-      deviceId: string;
-      emittedAtMs: number;
-      supported: boolean;
     }
   | {
       kind: 'TACTILE_PULSE';
@@ -118,8 +94,7 @@ export type SessionBroadcastMessage =
     };
 
 export interface RouteInfo {
-  page: 'landing' | 'therapist' | 'client' | 'tactile' | 'legal' | 'privacy' | 'terms' | 'disclaimer' | 'not-found';
+  page: 'landing' | 'therapist' | 'client' | 'legal' | 'privacy' | 'terms' | 'disclaimer' | 'not-found';
   sessionId?: string;
   token?: string;
-  side?: TactileSide;
 }

@@ -34,16 +34,6 @@ vi.mock('../components/StimulusStage', () => ({
   StimulusStage: ({ state }: { state: SessionState }) => <div>stage {state.status}</div>,
 }));
 
-vi.mock('../components/QRCodeCard', () => ({
-  QRCodeCard: ({ title, url, helper }: { title: string; url: string; helper: string }) => (
-    <article>
-      <h3>{title}</h3>
-      <code>{url}</code>
-      <p>{helper}</p>
-    </article>
-  ),
-}));
-
 function setFullscreenElement(element: Element | null) {
   Object.defineProperty(document, 'fullscreenElement', {
     configurable: true,
@@ -97,7 +87,7 @@ describe('ClientSessionPage', () => {
     expect(screen.getByText('stage running')).toBeInTheDocument();
   });
 
-  it('unlocks audio and toggles tactile pairing QR links', async () => {
+  it('unlocks audio without exposing tactile setup controls', async () => {
     mocks.getBlsSession.mockResolvedValue({ state: makeState() });
 
     renderWithI18n(<ClientSessionPage sessionId="session-id" token="client token" />);
@@ -108,12 +98,7 @@ describe('ClientSessionPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enter and enable audio' }));
     expect(screen.getByRole('button', { name: 'Audio enabled' })).toBeInTheDocument();
     expect(screen.queryByText('The browser requires a user gesture to allow stereo audio.')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Tactile QR' }));
-
-    expect(screen.getByText('Pair tactile devices')).toBeInTheDocument();
-    expect(screen.getByText(`${window.location.origin}/session/session-id/tactile/left?t=client%20token`)).toBeInTheDocument();
-    expect(screen.getByText(`${window.location.origin}/session/session-id/tactile/right?t=client%20token`)).toBeInTheDocument();
+    expect(screen.queryByText('/session/session-id/tactile/left')).not.toBeInTheDocument();
   });
 
   it('shows only an exit control while the client view is fullscreen', async () => {

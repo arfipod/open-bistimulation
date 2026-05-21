@@ -1,4 +1,4 @@
-import type { RouteInfo, TactileSide } from '../domain/sessionTypes';
+import type { RouteInfo } from '../domain/sessionTypes';
 
 export function parseCurrentRoute(location: Location = window.location): RouteInfo {
   const parts = location.pathname.split('/').filter(Boolean);
@@ -27,14 +27,6 @@ export function parseCurrentRoute(location: Location = window.location): RouteIn
     return { page: 'client', sessionId, token };
   }
 
-  if (roleSegment === 'tactile') {
-    const side = parts[3];
-
-    if (side === 'left' || side === 'right') {
-      return { page: 'tactile', sessionId, token, side: side as TactileSide };
-    }
-  }
-
   return { page: 'not-found' };
 }
 
@@ -44,10 +36,6 @@ export function therapistUrl(sessionId: string, therapistToken: string): string 
 
 export function clientUrl(sessionId: string, clientToken: string): string {
   return `${window.location.origin}/session/${sessionId}/client?t=${encodeURIComponent(clientToken)}`;
-}
-
-export function tactileUrl(sessionId: string, clientToken: string, side: TactileSide): string {
-  return `${window.location.origin}/session/${sessionId}/tactile/${side}?t=${encodeURIComponent(clientToken)}`;
 }
 
 export async function copyToClipboard(value: string): Promise<void> {

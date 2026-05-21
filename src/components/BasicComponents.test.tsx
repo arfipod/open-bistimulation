@@ -9,17 +9,6 @@ import { InviteClient } from './InviteClient';
 import { KoFiWidget } from './KoFiWidget';
 import { LanguageToggle } from './LanguageToggle';
 import { LoadingView } from './LoadingView';
-import { QRCodeCard } from './QRCodeCard';
-
-const mocks = vi.hoisted(() => ({
-  toDataURL: vi.fn(),
-}));
-
-vi.mock('qrcode', () => ({
-  default: {
-    toDataURL: mocks.toDataURL,
-  },
-}));
 
 describe('basic components', () => {
   it('renders the header with connection state, actions, and language toggle', () => {
@@ -85,25 +74,5 @@ describe('basic components', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument());
     expect(writeText).toHaveBeenCalledWith(expectedUrl);
-  });
-
-  it('generates QR cards and copies their links', async () => {
-    mocks.toDataURL.mockResolvedValue('data:image/png;base64,qr');
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: { writeText },
-    });
-
-    renderWithI18n(<QRCodeCard title="Left device" url="https://app.example/left" helper="Scan me" />);
-
-    expect(screen.getByText('Generating QR...')).toBeInTheDocument();
-    expect(await screen.findByRole('img', { name: 'QR Left device' })).toHaveAttribute('src', 'data:image/png;base64,qr');
-    expect(mocks.toDataURL).toHaveBeenCalledWith('https://app.example/left', { width: 180, margin: 1 });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
-
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument());
-    expect(writeText).toHaveBeenCalledWith('https://app.example/left');
   });
 });

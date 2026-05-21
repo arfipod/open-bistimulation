@@ -4,7 +4,6 @@ import type { RouteInfo } from '../domain/sessionTypes';
 import { LandingPage } from '../pages/LandingPage';
 import { TherapistSessionPage } from '../pages/TherapistSessionPage';
 import { ClientSessionPage } from '../pages/ClientSessionPage';
-import { TactileDevicePage } from '../pages/TactileDevicePage';
 import { LegalPage } from '../pages/LegalPage';
 import { AppFooter } from '../components/AppFooter';
 import { ErrorView } from '../components/ErrorView';
@@ -29,8 +28,6 @@ export default function App() {
     page = <TherapistSessionPage sessionId={route.sessionId} token={route.token} />;
   } else if (route.page === 'client' && route.sessionId) {
     page = <ClientSessionPage sessionId={route.sessionId} token={route.token} />;
-  } else if (route.page === 'tactile' && route.sessionId && route.side) {
-    page = <TactileDevicePage sessionId={route.sessionId} token={route.token} side={route.side} />;
   } else if (route.page === 'legal' || route.page === 'privacy' || route.page === 'terms' || route.page === 'disclaimer') {
     page = <LegalPage page={route.page} />;
   } else {

@@ -15,23 +15,9 @@ create table if not exists public.sessions (
   ended_at timestamptz
 );
 
-create table if not exists public.tactile_devices (
-  id uuid primary key default gen_random_uuid(),
-  session_id uuid not null references public.sessions(id) on delete cascade,
-  side text not null check (side in ('left', 'right')),
-  device_id text not null,
-  label text,
-  connected boolean not null default false,
-  last_seen_at timestamptz,
-  created_at timestamptz not null default now(),
-  unique (session_id, side, device_id)
-);
-
 create index if not exists idx_sessions_expires_at on public.sessions (expires_at);
-create index if not exists idx_tactile_devices_session_id on public.tactile_devices (session_id);
 
 alter table public.sessions enable row level security;
-alter table public.tactile_devices enable row level security;
 
 -- The MVP uses SECURITY DEFINER RPC functions instead of direct table access.
 -- This keeps table data unavailable to the anon key while still allowing the app to create and operate sessions.
@@ -43,15 +29,6 @@ create policy "deny direct sessions select" on public.sessions for select using 
 create policy "deny direct sessions insert" on public.sessions for insert with check (false);
 create policy "deny direct sessions update" on public.sessions for update using (false) with check (false);
 create policy "deny direct sessions delete" on public.sessions for delete using (false);
-
-drop policy if exists "deny direct tactile select" on public.tactile_devices;
-drop policy if exists "deny direct tactile insert" on public.tactile_devices;
-drop policy if exists "deny direct tactile update" on public.tactile_devices;
-drop policy if exists "deny direct tactile delete" on public.tactile_devices;
-create policy "deny direct tactile select" on public.tactile_devices for select using (false);
-create policy "deny direct tactile insert" on public.tactile_devices for insert with check (false);
-create policy "deny direct tactile update" on public.tactile_devices for update using (false) with check (false);
-create policy "deny direct tactile delete" on public.tactile_devices for delete using (false);
 
 create or replace function public.touch_updated_at()
 returns trigger
@@ -212,47 +189,6 @@ begin
 end;
 $$;
 
-create or replace function public.upsert_tactile_device(
-  _session_id uuid,
-  _client_token text,
-  _side text,
-  _device_id text,
-  _label text default null,
-  _connected boolean default true
-)
-returns boolean
-language plpgsql
-security definer
-set search_path = public, extensions
-as $$
-declare
-  v_allowed boolean;
-begin
-  select exists (
-    select 1
-    from public.sessions s
-    where s.id = _session_id
-      and s.client_token = _client_token
-      and s.ended_at is null
-      and (s.expires_at is null or s.expires_at > now())
-  ) into v_allowed;
-
-  if not v_allowed then
-    return false;
-  end if;
-
-  insert into public.tactile_devices (session_id, side, device_id, label, connected, last_seen_at)
-  values (_session_id, _side, _device_id, _label, coalesce(_connected, true), now())
-  on conflict (session_id, side, device_id)
-  do update set
-    label = coalesce(excluded.label, public.tactile_devices.label),
-    connected = excluded.connected,
-    last_seen_at = now();
-
-  return true;
-end;
-$$;
-
 create or replace function public.cleanup_expired_bls_sessions()
 returns integer
 language plpgsql
@@ -272,7 +208,6 @@ end;
 $$;
 
 revoke all on public.sessions from anon, authenticated;
-revoke all on public.tactile_devices from anon, authenticated;
 revoke all on function public.cleanup_expired_bls_sessions() from public, anon, authenticated;
 
 grant execute on function public.get_server_time_ms() to anon, authenticated;
@@ -281,4 +216,3 @@ grant execute on function public.get_bls_session(uuid, text) to anon, authentica
 grant execute on function public.therapist_save_state(uuid, text, jsonb) to anon, authenticated;
 grant execute on function public.therapist_save_preferences(uuid, text, jsonb) to anon, authenticated;
 grant execute on function public.end_bls_session(uuid, text) to anon, authenticated;
-grant execute on function public.upsert_tactile_device(uuid, text, text, text, text, boolean) to anon, authenticated;
