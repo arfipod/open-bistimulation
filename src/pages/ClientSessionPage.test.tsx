@@ -44,6 +44,15 @@ vi.mock('../components/QRCodeCard', () => ({
   ),
 }));
 
+function setFullscreenElement(element: Element | null) {
+  Object.defineProperty(document, 'fullscreenElement', {
+    configurable: true,
+    get: () => element,
+  });
+
+  document.dispatchEvent(new Event('fullscreenchange'));
+}
+
 function makeState(overrides: Partial<SessionState> = {}): SessionState {
   return {
     ...DEFAULT_SESSION_STATE,
@@ -59,6 +68,7 @@ describe('ClientSessionPage', () => {
     mocks.getBlsSession.mockReset();
     mocks.send.mockReset().mockResolvedValue(undefined);
     mocks.onMessage = null;
+    setFullscreenElement(null);
   });
 
   it('shows an error when the client token is missing', () => {
@@ -104,6 +114,32 @@ describe('ClientSessionPage', () => {
     expect(screen.getByText('Pair tactile devices')).toBeInTheDocument();
     expect(screen.getByText(`${window.location.origin}/session/session-id/tactile/left?t=client%20token`)).toBeInTheDocument();
     expect(screen.getByText(`${window.location.origin}/session/session-id/tactile/right?t=client%20token`)).toBeInTheDocument();
+  });
+
+  it('shows only an exit control while the client view is fullscreen', async () => {
+    const exitFullscreen = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(document, 'exitFullscreen', {
+      configurable: true,
+      value: exitFullscreen,
+    });
+    mocks.getBlsSession.mockResolvedValue({ state: makeState() });
+
+    renderWithI18n(<ClientSessionPage sessionId="session-id" token="client-token" />);
+
+    expect(await screen.findByText('stage idle')).toBeInTheDocument();
+
+    act(() => {
+      setFullscreenElement(document.documentElement);
+    });
+
+    expect(screen.getByRole('button', { name: 'Exit fullscreen' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Fullscreen' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Connected')).not.toBeInTheDocument();
+    expect(screen.queryByText('The browser requires a user gesture to allow stereo audio.')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Exit fullscreen' }));
+
+    expect(exitFullscreen).toHaveBeenCalledTimes(1);
   });
 
   it('shows the ended-session view when the controller broadcasts the end', async () => {

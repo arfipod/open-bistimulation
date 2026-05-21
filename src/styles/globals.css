@@ -201,6 +201,14 @@ code {
   display: none;
 }
 
+html:fullscreen .app-shell-client .app-footer {
+  display: none;
+}
+
+.app-shell-therapist > main {
+  flex: 0 0 auto;
+}
+
 .primary-button,
 .secondary-button,
 .danger-button {
@@ -473,10 +481,6 @@ code {
 .legal-panel li {
   color: #334155;
   line-height: 1.55;
-}
-
-.therapist-page {
-  min-height: 100vh;
 }
 
 .therapist-grid {
@@ -912,6 +916,13 @@ input[type='range'] {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.client-fullscreen-exit {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 30;
 }
 
 .client-status {

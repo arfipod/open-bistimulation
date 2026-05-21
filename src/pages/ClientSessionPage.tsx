@@ -24,6 +24,7 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [showPairing, setShowPairing] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const clock = useServerClock();
   const { t } = useI18n();
 
@@ -87,6 +88,34 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
     return () => window.clearInterval(interval);
   }, [clock.offsetMs, realtimeStatus, send]);
 
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    handleFullscreenChange();
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const enterFullscreen = useCallback(() => {
+    const requestFullscreen = document.documentElement.requestFullscreen;
+
+    if (!requestFullscreen) {
+      return;
+    }
+
+    void requestFullscreen.call(document.documentElement).catch(() => undefined);
+  }, []);
+
+  const exitFullscreen = useCallback(() => {
+    if (!document.exitFullscreen) {
+      return;
+    }
+
+    void document.exitFullscreen().catch(() => undefined);
+  }, []);
+
   const tactileLinks = useMemo(() => {
     if (!token) {
       return null;
@@ -114,23 +143,29 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
     <main className="client-page">
       <StimulusStage state={state} serverTimeOffsetMs={clock.offsetMs} className="client-stage" />
 
-      <div className="client-topbar">
-        <span className={`client-status ${realtimeStatus === 'connected' ? 'ok' : 'bad'}`}>
-          {realtimeStatus === 'connected' ? t('common.connected') : t('common.reconnecting')}
-        </span>
-        <button className="secondary-button" type="button" onClick={() => setAudioUnlocked(true)}>
-          {audioUnlocked ? t('client.audioEnabled') : t('client.enableAudio')}
+      {isFullscreen ? (
+        <button className="secondary-button client-fullscreen-exit" type="button" onClick={exitFullscreen}>
+          {t('client.exitFullscreen')}
         </button>
-        <button className="secondary-button" type="button" onClick={() => setShowPairing((current) => !current)}>
-          {showPairing ? t('client.hideTactileQr') : t('client.tactileQr')}
-        </button>
-        <button className="secondary-button" type="button" onClick={() => void document.documentElement.requestFullscreen?.()}>
-          {t('client.fullscreen')}
-        </button>
-        <LanguageToggle />
-      </div>
+      ) : (
+        <div className="client-topbar">
+          <span className={`client-status ${realtimeStatus === 'connected' ? 'ok' : 'bad'}`}>
+            {realtimeStatus === 'connected' ? t('common.connected') : t('common.reconnecting')}
+          </span>
+          <button className="secondary-button" type="button" onClick={() => setAudioUnlocked(true)}>
+            {audioUnlocked ? t('client.audioEnabled') : t('client.enableAudio')}
+          </button>
+          <button className="secondary-button" type="button" onClick={() => setShowPairing((current) => !current)}>
+            {showPairing ? t('client.hideTactileQr') : t('client.tactileQr')}
+          </button>
+          <button className="secondary-button" type="button" onClick={enterFullscreen}>
+            {t('client.fullscreen')}
+          </button>
+          <LanguageToggle />
+        </div>
+      )}
 
-      {!audioUnlocked && state.audio.enabled ? (
+      {!isFullscreen && !audioUnlocked && state.audio.enabled ? (
         <div className="join-audio-panel panel">
           <h1>{t('client.enableAudioTitle')}</h1>
           <p>{t('client.enableAudioBody')}</p>
@@ -140,7 +175,7 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
         </div>
       ) : null}
 
-      {showPairing && tactileLinks ? (
+      {!isFullscreen && showPairing && tactileLinks ? (
         <section className="pairing-drawer panel">
           <header>
             <h2>{t('client.pairTactile')}</h2>
