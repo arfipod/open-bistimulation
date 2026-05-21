@@ -41,7 +41,7 @@ The Vercel/Supabase aliases `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE
 
 ## Local Joy-Con Bridge
 
-Joy-Con HID access is native/local, so the hosted browser app talks to a companion Node bridge instead of importing `node-hid` in frontend code. See [docs/joycon-bridge.md](docs/joycon-bridge.md) for pairing, `npm run joycon:bridge`, CLI pulse commands, CORS settings, and troubleshooting.
+Joy-Con HID access is native/local, so the hosted browser app talks to a companion Node bridge instead of importing `node-hid` in frontend code. Tactile pulses are sent directly from the controller browser to that local bridge; Supabase Realtime is not used for hardware output. See [docs/joycon-bridge.md](docs/joycon-bridge.md) for pairing, `npm run joycon:bridge`, CLI pulse commands, CORS settings, and troubleshooting.
 
 ## Supabase Setup
 

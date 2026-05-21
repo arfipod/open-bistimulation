@@ -16,11 +16,12 @@ import {
 } from '../domain/motion';
 import { endBlsSession, getBlsSession, getServerTimeMs, saveTherapistPreferences, saveTherapistState } from '../lib/sessionApi';
 import { getJoyConBridgeUrl, isValidJoyConBridgeUrl, saveJoyConBridgeUrl, saveLocalPreferences } from '../lib/localStorage';
+import type { JoyConIntensity } from '../lib/joyconBridgeClient';
 import { clientUrl } from '../lib/url';
 import { useI18n } from '../lib/i18n';
 import { useServerClock } from '../hooks/useServerClock';
 import { useSessionRealtime } from '../hooks/useSessionRealtime';
-import { useTactilePulseEmitter } from '../hooks/useTactilePulseEmitter';
+import { useJoyConTactileOutput } from '../hooks/useJoyConTactileOutput';
 import { useAudioBls } from '../hooks/useAudioBls';
 import { useJoyConBridge } from '../hooks/useJoyConBridge';
 import { useTicker } from '../hooks/useTicker';
@@ -54,6 +55,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [roundDurationMs, setRoundDurationMs] = useState<number | null>(DEFAULT_ROUND_DURATION_MS);
   const [bridgeUrl, setBridgeUrl] = useState(getJoyConBridgeUrl);
+  const [tactileIntensity, setTactileIntensity] = useState<JoyConIntensity>('medium');
   const autoStopStartedRef = useRef(false);
 
   const clock = useServerClock();
@@ -135,7 +137,13 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
     [commitState, state, t],
   );
 
-  useTactilePulseEmitter({ state: state ?? undefinedState, serverTimeOffsetMs: clock.offsetMs, send });
+  const tactileOutput = useJoyConTactileOutput({
+    state: state ?? undefinedState,
+    serverTimeOffsetMs: clock.offsetMs,
+    bridgeUrl,
+    intensity: tactileIntensity,
+    enabled: bridgeUrlValid,
+  });
   useAudioBls({ state: state ?? undefinedState, serverTimeOffsetMs: clock.offsetMs, unlocked: audioUnlocked, role: 'therapist' });
 
   useEffect(() => {
@@ -336,6 +344,9 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
             leftConnected={joyConBridge.leftConnected}
             rightConnected={joyConBridge.rightConnected}
             error={joyConBridge.error}
+            intensity={tactileIntensity}
+            onIntensityChange={setTactileIntensity}
+            outputStatus={tactileOutput}
             onBridgeUrlChange={handleBridgeUrlChange}
             onRefresh={() => void joyConBridge.refresh()}
             onTestPulse={(options) => void joyConBridge.testPulse(options)}

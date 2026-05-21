@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import type { TactileSettings } from '../domain/sessionTypes';
+import type { JoyConTactileOutputStatus } from '../hooks/useJoyConTactileOutput';
 import type { JoyConDeviceSummary, JoyConIntensity, JoyConSide } from '../lib/joyconBridgeClient';
 import { useI18n } from '../lib/i18n';
 import { ConnectionBadge } from './ConnectionBadge';
@@ -14,6 +14,9 @@ interface TactilePanelProps {
   leftConnected: boolean;
   rightConnected: boolean;
   error: string | null;
+  intensity: JoyConIntensity;
+  onIntensityChange: (intensity: JoyConIntensity) => void;
+  outputStatus: JoyConTactileOutputStatus;
   onBridgeUrlChange: (url: string) => void;
   onRefresh: () => void;
   onTestPulse: (options: { side: JoyConSide; intensity: JoyConIntensity; duration: number; repeats: number }) => void;
@@ -57,13 +60,15 @@ export function TactilePanel({
   leftConnected,
   rightConnected,
   error,
+  intensity,
+  onIntensityChange,
+  outputStatus,
   onBridgeUrlChange,
   onRefresh,
   onTestPulse,
   onNeutral,
 }: TactilePanelProps) {
   const { t } = useI18n();
-  const [intensity, setIntensity] = useState<JoyConIntensity>('medium');
 
   const leftDevice = findDevice(devices, 'left');
   const rightDevice = findDevice(devices, 'right');
@@ -117,7 +122,17 @@ export function TactilePanel({
             battery={batteryText(rightDevice, t('tactile.batteryUnknown'))}
           />
         </div>
+        <div className="tactile-output-grid">
+          <span>{t('tactile.lastPulse')}</span>
+          <strong>{formatLastPulse(outputStatus, t)}</strong>
+          <span>{t('tactile.pulseCount')}</span>
+          <strong>
+            {outputStatus.pulseCount}
+            {outputStatus.skippedPulseCount > 0 ? ` / ${t('tactile.skippedPulseCount', { value: outputStatus.skippedPulseCount })}` : ''}
+          </strong>
+        </div>
         {error && bridgeUrlValid ? <p className="panel-note tactile-error">{error}</p> : null}
+        {outputStatus.lastError ? <p className="panel-note tactile-error">{t('tactile.outputError', { error: outputStatus.lastError })}</p> : null}
       </div>
 
       <div className="tactile-actions">
@@ -164,7 +179,7 @@ export function TactilePanel({
               key={nextIntensity.value}
               type="button"
               className={intensity === nextIntensity.value ? 'is-selected' : ''}
-              onClick={() => setIntensity(nextIntensity.value)}
+              onClick={() => onIntensityChange(nextIntensity.value)}
             >
               {t(nextIntensity.labelKey)}
             </button>
@@ -188,6 +203,21 @@ export function TactilePanel({
       <p className="panel-note">{t('tactile.note')}</p>
     </section>
   );
+}
+
+function formatLastPulse(outputStatus: JoyConTactileOutputStatus, t: ReturnType<typeof useI18n>['t']): string {
+  if (!outputStatus.lastPulseSide || outputStatus.lastPulseAt === null) {
+    return t('tactile.noPulseYet');
+  }
+
+  const side = outputStatus.lastPulseSide === 'left' ? t('common.left') : t('common.right');
+  const at = new Date(outputStatus.lastPulseAt).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+
+  return t('tactile.lastPulseValue', { side, at });
 }
 
 function DeviceStatus({ label, connected, battery }: { label: string; connected: boolean; battery: string }) {

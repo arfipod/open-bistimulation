@@ -82,13 +82,6 @@ export type SessionBroadcastMessage =
       emittedAtMs: number;
     }
   | {
-      kind: 'TACTILE_PULSE';
-      side: TactileSide;
-      durationMs: number;
-      sequence: number;
-      emittedAtMs: number;
-    }
-  | {
       kind: 'SESSION_ENDED';
       emittedAtMs: number;
     };

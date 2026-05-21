@@ -1,9 +1,5 @@
-# TACTILE MOBILE
+# Tactile Output
 
-This document is now in English. Please review and update details as needed.
+Tactile output no longer uses mobile participant routes or Supabase Realtime pulse messages.
 
-- Supabase setup uses   - SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL
-  - SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY
-- Vercel Supabase integration also creates: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_PUBLISHABLE_KEY, POSTGRES_URL, and related POSTGRES_* variables.
-- The app now supports Vercel/Supabase variable names through aliases in runtime config documentation.
-
+Current tactile output is driven from the controller browser through the local Joy-Con bridge. Supabase Realtime remains responsible for session state and participant readiness only.

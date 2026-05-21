@@ -545,10 +545,6 @@ async function sendBroadcast(participant, payload) {
   return result;
 }
 
-function sideFor(index) {
-  return index % 2 === 0 ? 'left' : 'right';
-}
-
 async function teardownParticipants(participants) {
   await Promise.allSettled(
     participants.map(async (participant) => {
@@ -571,7 +567,7 @@ async function runRealtimeScenario({
   sessionsCount,
   clientsPerSession,
   durationMs,
-  pulseHz,
+  stateUpdateHz,
   setupConcurrency,
   joinRate,
 }) {
@@ -677,26 +673,24 @@ async function runRealtimeScenario({
   }
 
   const startedAt = performance.now();
-  let nextPulseAt = 0;
+  let nextStateUpdateAt = 0;
   let nextHeartbeatAt = 0;
-  const pulseIntervalMs = pulseHz > 0 ? 1000 / pulseHz : null;
+  const stateUpdateIntervalMs = stateUpdateHz > 0 ? 1000 / stateUpdateHz : null;
 
   while (performance.now() - startedAt < durationMs) {
     const elapsed = performance.now() - startedAt;
 
-    if (pulseIntervalMs !== null && elapsed >= nextPulseAt) {
+    if (stateUpdateIntervalMs !== null && elapsed >= nextStateUpdateAt) {
       for (const group of groups) {
         sequence += 1;
         await sendAndCount(group.therapist, group, {
-          kind: 'TACTILE_PULSE',
-          side: sideFor(sequence),
-          durationMs: DEFAULT_STATE.tactile.pulseDurationMs,
-          sequence,
+          kind: 'STATE_UPDATED',
+          state: runningState(sequence, serverTimeMs),
           emittedAtMs: Date.now(),
         });
       }
 
-      nextPulseAt += pulseIntervalMs;
+      nextStateUpdateAt += stateUpdateIntervalMs;
     }
 
     if (elapsed >= nextHeartbeatAt) {
@@ -740,7 +734,7 @@ async function runRealtimeScenario({
     participantsExpected: sessions.length * (1 + clientsPerSession),
     participantsSubscribed: subscribedParticipants.length,
     durationMs,
-    pulseHz,
+    stateUpdateHz,
     createSummary: summarizeTimings(createResults),
     rpcSummary: summarizeTimings(rpcResults),
     joinSummary: summarizeTimings(joinResults),
@@ -777,7 +771,7 @@ async function main() {
       sessionsCount: toInt(args.sessions, 10),
       clientsPerSession: toInt(args.clientsPerSession || args.clients, 1),
       durationMs: toInt(args.durationMs, 10_000),
-      pulseHz: toFloat(args.pulseHz, 0),
+      stateUpdateHz: toFloat(args.stateHz ?? args.stateUpdateHz, 0),
       setupConcurrency: toInt(args.setupConcurrency, 10),
       joinRate: toInt(args.joinRate, 60),
     });
@@ -800,7 +794,7 @@ async function main() {
           sessionsCount,
           clientsPerSession: toInt(args.clientsPerSession || args.clients, 1),
           durationMs: toInt(args.durationMs, 10_000),
-          pulseHz: toFloat(args.pulseHz, 0),
+          stateUpdateHz: toFloat(args.stateHz ?? args.stateUpdateHz, 0),
           setupConcurrency: toInt(args.setupConcurrency, 10),
           joinRate: toInt(args.joinRate, 60),
         }),
@@ -813,7 +807,7 @@ async function main() {
 
   console.log(`Usage:
   node scripts/stress-test.mjs http --base-url ${DEFAULT_LOCAL_URL} --requests 200 --concurrency 20
-  node scripts/stress-test.mjs realtime --base-url ${DEFAULT_VERCEL_URL} --sessions 25 --clients 1 --duration-ms 15000 --pulse-hz 0.58
+  node scripts/stress-test.mjs realtime --base-url ${DEFAULT_VERCEL_URL} --sessions 25 --clients 1 --duration-ms 15000 --state-hz 0.58
   node scripts/stress-test.mjs matrix --base-url ${DEFAULT_LOCAL_URL} --sessions 10,25,40 --clients 1
 
 Notes:

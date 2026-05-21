@@ -46,8 +46,14 @@ vi.mock('../hooks/useSessionRealtime', () => ({
   },
 }));
 
-vi.mock('../hooks/useTactilePulseEmitter', () => ({
-  useTactilePulseEmitter: vi.fn(),
+vi.mock('../hooks/useJoyConTactileOutput', () => ({
+  useJoyConTactileOutput: () => ({
+    lastPulseSide: null,
+    lastPulseAt: null,
+    pulseCount: 0,
+    lastError: null,
+    skippedPulseCount: 0,
+  }),
 }));
 
 vi.mock('../hooks/useAudioBls', () => ({
