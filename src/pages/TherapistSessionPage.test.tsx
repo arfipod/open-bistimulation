@@ -12,8 +12,8 @@ const mocks = vi.hoisted(() => ({
   saveTherapistPreferences: vi.fn(),
   endBlsSession: vi.fn(),
   saveLocalPreferences: vi.fn(),
-  saveJoyConBridgeUrl: vi.fn(),
-  refreshJoyConBridge: vi.fn(),
+  requestJoyConDevices: vi.fn(),
+  refreshJoyConDevices: vi.fn(),
   testJoyConPulse: vi.fn(),
   neutralJoyCon: vi.fn(),
   send: vi.fn(),
@@ -30,9 +30,6 @@ vi.mock('../lib/sessionApi', () => ({
 
 vi.mock('../lib/localStorage', () => ({
   saveLocalPreferences: mocks.saveLocalPreferences,
-  getJoyConBridgeUrl: () => 'http://127.0.0.1:5174',
-  isValidJoyConBridgeUrl: (url: string) => url.startsWith('http://') || url.startsWith('https://'),
-  saveJoyConBridgeUrl: mocks.saveJoyConBridgeUrl,
 }));
 
 vi.mock('../hooks/useServerClock', () => ({
@@ -60,14 +57,16 @@ vi.mock('../hooks/useAudioBls', () => ({
   useAudioBls: vi.fn(),
 }));
 
-vi.mock('../hooks/useJoyConBridge', () => ({
-  useJoyConBridge: () => ({
-    bridgeOnline: true,
+vi.mock('../hooks/useJoyConWebHid', () => ({
+  useJoyConWebHid: () => ({
+    supported: true,
+    requesting: false,
     devices: [{ side: 'left', product: 'Joy-Con (L)' }],
     leftConnected: true,
     rightConnected: false,
     error: null,
-    refresh: mocks.refreshJoyConBridge,
+    requestDevices: mocks.requestJoyConDevices,
+    refresh: mocks.refreshJoyConDevices,
     testPulse: mocks.testJoyConPulse,
     neutral: mocks.neutralJoyCon,
   }),
@@ -180,8 +179,8 @@ describe('TherapistSessionPage', () => {
     mocks.saveTherapistPreferences.mockReset().mockResolvedValue(undefined);
     mocks.endBlsSession.mockReset().mockResolvedValue(undefined);
     mocks.saveLocalPreferences.mockReset();
-    mocks.saveJoyConBridgeUrl.mockReset();
-    mocks.refreshJoyConBridge.mockReset().mockResolvedValue(undefined);
+    mocks.requestJoyConDevices.mockReset().mockResolvedValue(undefined);
+    mocks.refreshJoyConDevices.mockReset().mockResolvedValue(undefined);
     mocks.testJoyConPulse.mockReset().mockResolvedValue(undefined);
     mocks.neutralJoyCon.mockReset().mockResolvedValue(undefined);
     mocks.send.mockReset().mockResolvedValue(undefined);

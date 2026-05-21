@@ -16,3 +16,47 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+interface HIDDeviceFilter {
+  vendorId?: number;
+  productId?: number;
+  usagePage?: number;
+  usage?: number;
+}
+
+interface HIDDeviceRequestOptions {
+  filters: HIDDeviceFilter[];
+}
+
+interface HIDCollectionInfo {
+  usagePage: number;
+  usage: number;
+  type: number;
+  children: HIDCollectionInfo[];
+}
+
+interface HIDDevice extends EventTarget {
+  readonly opened: boolean;
+  readonly vendorId: number;
+  readonly productId: number;
+  readonly productName: string;
+  readonly collections: HIDCollectionInfo[];
+  open(): Promise<void>;
+  close(): Promise<void>;
+  sendReport(reportId: number, data: BufferSource): Promise<void>;
+}
+
+interface HIDConnectionEvent extends Event {
+  readonly device: HIDDevice;
+}
+
+interface HID extends EventTarget {
+  getDevices(): Promise<HIDDevice[]>;
+  requestDevice(options: HIDDeviceRequestOptions): Promise<HIDDevice[]>;
+  addEventListener(type: 'connect' | 'disconnect', listener: (event: HIDConnectionEvent) => void): void;
+  removeEventListener(type: 'connect' | 'disconnect', listener: (event: HIDConnectionEvent) => void): void;
+}
+
+interface Navigator {
+  readonly hid?: HID;
+}

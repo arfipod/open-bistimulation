@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   neutralJoyCon: vi.fn(),
 }));
 
-vi.mock('../lib/joyconBridgeClient', () => ({
+vi.mock('../lib/joyconWebHidClient', () => ({
   pulseJoyCon: mocks.pulseJoyCon,
   neutralJoyCon: mocks.neutralJoyCon,
 }));
@@ -70,7 +70,6 @@ function installRaf() {
 }
 
 const BASE_OPTIONS = {
-  bridgeUrl: 'http://127.0.0.1:5174',
   intensity: 'medium' as const,
   enabled: true,
 };
@@ -98,7 +97,7 @@ describe('useJoyConTactileOutput', () => {
     act(() => raf.runNext());
 
     await waitFor(() => expect(mocks.pulseJoyCon).toHaveBeenCalledTimes(1));
-    expect(mocks.pulseJoyCon).toHaveBeenCalledWith('http://127.0.0.1:5174', {
+    expect(mocks.pulseJoyCon).toHaveBeenCalledWith({
       side: 'right',
       duration: 180,
       repeats: 1,
@@ -159,7 +158,7 @@ describe('useJoyConTactileOutput', () => {
 
     rerender({ state: pausedState });
     await waitFor(() => expect(mocks.neutralJoyCon).toHaveBeenCalledTimes(1));
-    expect(mocks.neutralJoyCon).toHaveBeenCalledWith('http://127.0.0.1:5174', { side: 'both' });
+    expect(mocks.neutralJoyCon).toHaveBeenCalledWith({ side: 'both' });
 
     rerender({ state: stoppedState });
     expect(mocks.neutralJoyCon).toHaveBeenCalledTimes(1);
@@ -196,10 +195,7 @@ describe('useJoyConTactileOutput', () => {
     act(() => raf.runNext());
 
     await waitFor(() => expect(mocks.pulseJoyCon).toHaveBeenCalledTimes(1));
-    expect(mocks.pulseJoyCon).toHaveBeenCalledWith(
-      'http://127.0.0.1:5174',
-      expect.objectContaining({ side: 'left' }),
-    );
+    expect(mocks.pulseJoyCon).toHaveBeenCalledWith(expect.objectContaining({ side: 'left' }));
   });
 
   it('skips half-cycle pulses while a previous pulse request is still in flight', async () => {

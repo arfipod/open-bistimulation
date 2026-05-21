@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getMotionSnapshot, getServerNowMs } from '../domain/motion';
 import type { SessionState, TactileSide } from '../domain/sessionTypes';
-import type { JoyConIntensity } from '../lib/joyconBridgeClient';
-import { neutralJoyCon, pulseJoyCon } from '../lib/joyconBridgeClient';
+import type { JoyConIntensity } from '../lib/joyconTypes';
+import { neutralJoyCon, pulseJoyCon } from '../lib/joyconWebHidClient';
 
 interface UseJoyConTactileOutputOptions {
   state: SessionState;
   serverTimeOffsetMs: number;
-  bridgeUrl: string;
   intensity: JoyConIntensity;
   enabled: boolean;
 }
@@ -35,14 +34,12 @@ function messageFromError(error: unknown): string {
 export function useJoyConTactileOutput({
   state,
   serverTimeOffsetMs,
-  bridgeUrl,
   intensity,
   enabled,
 }: UseJoyConTactileOutputOptions): JoyConTactileOutputStatus {
   const [status, setStatus] = useState<JoyConTactileOutputStatus>(IDLE_STATUS);
   const mountedRef = useRef(false);
   const wasActiveRef = useRef(false);
-  const activeBridgeUrlRef = useRef<string | null>(null);
   const lastHalfCycleRef = useRef<number | null>(null);
   const lastPulseStartedAtRef = useRef<number | null>(null);
   const pulseInFlightRef = useRef(false);
@@ -85,13 +82,13 @@ export function useJoyConTactileOutput({
   }, []);
 
   const sendNeutral = useCallback(
-    (targetBridgeUrl: string | null = bridgeUrl) => {
-      if (!targetBridgeUrl || neutralInFlightRef.current) {
+    () => {
+      if (neutralInFlightRef.current) {
         return;
       }
 
       neutralInFlightRef.current = true;
-      void neutralJoyCon(targetBridgeUrl, { side: 'both' })
+      void neutralJoyCon({ side: 'both' })
         .then(() => {
           updateStatus((current) => ({
             ...current,
@@ -103,7 +100,7 @@ export function useJoyConTactileOutput({
           neutralInFlightRef.current = false;
         });
     },
-    [bridgeUrl, recordError, updateStatus],
+    [recordError, updateStatus],
   );
 
   useEffect(() => {
@@ -115,14 +112,7 @@ export function useJoyConTactileOutput({
   }, []);
 
   useEffect(() => {
-    const previousBridgeUrl = activeBridgeUrlRef.current;
-
     if (active) {
-      if (previousBridgeUrl && previousBridgeUrl !== bridgeUrl) {
-        sendNeutral(previousBridgeUrl);
-      }
-
-      activeBridgeUrlRef.current = bridgeUrl;
       wasActiveRef.current = true;
       return;
     }
@@ -131,19 +121,17 @@ export function useJoyConTactileOutput({
 
     if (wasActiveRef.current) {
       wasActiveRef.current = false;
-      sendNeutral(previousBridgeUrl ?? bridgeUrl);
+      sendNeutral();
     }
-
-    activeBridgeUrlRef.current = null;
-  }, [active, bridgeUrl, resetTimingRefs, sendNeutral]);
+  }, [active, resetTimingRefs, sendNeutral]);
 
   useEffect(() => {
     return () => {
-      if (wasActiveRef.current || activeBridgeUrlRef.current) {
-        sendNeutral(activeBridgeUrlRef.current ?? bridgeUrl);
+      if (wasActiveRef.current) {
+        sendNeutral();
       }
     };
-  }, [bridgeUrl, sendNeutral]);
+  }, [sendNeutral]);
 
   useEffect(() => {
     if (!active) {
@@ -185,7 +173,7 @@ export function useJoyConTactileOutput({
             lastError: null,
           }));
 
-          void pulseJoyCon(bridgeUrl, {
+          void pulseJoyCon({
             side,
             duration: state.tactile.pulseDurationMs,
             repeats: 1,
@@ -209,7 +197,7 @@ export function useJoyConTactileOutput({
       cancelled = true;
       window.cancelAnimationFrame(frame);
     };
-  }, [active, bridgeUrl, intensity, recordError, recordSkippedPulse, resetTimingRefs, serverTimeOffsetMs, state, updateStatus]);
+  }, [active, intensity, recordError, recordSkippedPulse, resetTimingRefs, serverTimeOffsetMs, state, updateStatus]);
 
   return useMemo(
     () => ({

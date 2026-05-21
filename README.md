@@ -1,6 +1,6 @@
 # Open Bistimulation
 
-Open Bistimulation is an independent MVP for browser-based bilateral sensory cues. BLS in this project means configurable left/right visual, auditory, and optional local Joy-Con tactile cues coordinated by a controller for a participant.
+Open Bistimulation is an independent MVP for browser-based bilateral sensory cues. BLS in this project means configurable left/right visual, auditory, and optional Joy-Con tactile cues coordinated by a controller for a participant.
 
 This project is experimental software. It is not medical advice, not a medical device, not for diagnostic or therapeutic decisions, and not for emergencies. Qualified professionals and operators remain responsible for deciding whether and how to use it in their own context.
 
@@ -10,11 +10,11 @@ Open Bistimulation is not affiliated with, endorsed by, sponsored by, or connect
 
 - Controller page for cue settings, timing, session status, and participant invitation links.
 - Participant page for visual and audio cues that work directly in the browser.
-- Optional tactile settings can be paired with a local Joy-Con bridge on the therapist/operator computer.
+- Optional Joy-Con tactile settings can run directly from the controller browser through WebHID.
 - English and Spanish UI copy.
 - Supabase RPC and Realtime backend with RLS denying direct anon table access.
 
-The app is hosted normally on Vercel as a browser frontend. Visual and audio cues run in the browser. Joy-Con tactile output is different: it requires a local Node bridge running on the therapist/operator computer. That bridge uses `node-hid` to talk to official Nintendo Joy-Con controllers over Bluetooth, and it is not deployed to Vercel.
+The app is hosted normally on Vercel as a browser frontend. Visual, audio, and Joy-Con tactile cues run from the controller browser. Joy-Con tactile output uses WebHID, so no local bridge process is required for the Vercel app or the local Vite app. The legacy `node-hid` scripts remain available for CLI diagnostics.
 
 ## Local Setup
 
@@ -41,9 +41,11 @@ SUPABASE_ANON_KEY=...
 
 The Vercel/Supabase aliases `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are also supported by the app runtime.
 
-## Local Joy-Con Bridge
+## Browser Joy-Con WebHID
 
-Joy-Con HID access is native/local, so the hosted Vercel app talks to a companion Node bridge instead of importing `node-hid` in frontend code. Joy-Con detection and rumble commands stay on the controller computer; tactile pulses are sent directly from the controller browser to that local bridge. Supabase does not register tactile devices or store Joy-Con device metadata, and Supabase Realtime is not used for hardware output. See [docs/joycon-bridge.md](docs/joycon-bridge.md) for pairing, `npm run joycon:bridge`, CLI pulse commands, CORS settings, app setup, and troubleshooting.
+Pair both Joy-Cons over Bluetooth first, then open the controller page in a browser with WebHID support. In the tactile panel, use `Add Joy-Cons` and select each controller from the browser device prompt. The app sends rumble reports directly from `navigator.hid`; Supabase does not register tactile devices or store Joy-Con device metadata, and Supabase Realtime is not used for hardware output.
+
+See [docs/TACTILE_MOBILE.md](docs/TACTILE_MOBILE.md) for the current browser flow. See [docs/joycon-bridge.md](docs/joycon-bridge.md) only if you want the legacy local bridge or CLI diagnostics.
 
 ## Supabase Setup
 
@@ -70,7 +72,7 @@ Supabase stores the minimum operational data needed for the MVP:
 - Preferences
 - Timestamps such as creation, update, expiry, and end time
 
-Tactile preferences may include whether tactile output is enabled plus pulse timing values. Joy-Con detection, battery details, local bridge status, and rumble commands are local-only and are not stored in Supabase.
+Tactile preferences may include whether tactile output is enabled plus pulse timing values. Joy-Con detection and rumble commands stay in the controller browser and are not stored in Supabase.
 
 The app does not intentionally store participant names, professional notes, diagnostic labels, symptoms, care plans, or transcripts. Avoid placing sensitive identifying information into URLs, browser tools, issue reports, logs, or deployment settings.
 

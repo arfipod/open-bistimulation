@@ -1,15 +1,14 @@
 import type { TactileSettings } from '../domain/sessionTypes';
 import type { JoyConTactileOutputStatus } from '../hooks/useJoyConTactileOutput';
-import type { JoyConDeviceSummary, JoyConIntensity, JoyConSide } from '../lib/joyconBridgeClient';
+import type { JoyConDeviceSummary, JoyConIntensity, JoyConSide } from '../lib/joyconTypes';
 import { useI18n } from '../lib/i18n';
 import { ConnectionBadge } from './ConnectionBadge';
 
 interface TactilePanelProps {
   tactile: TactileSettings;
   onChange: (next: TactileSettings) => void;
-  bridgeUrl: string;
-  bridgeUrlValid: boolean;
-  bridgeOnline: boolean;
+  webHidSupported: boolean;
+  requestingDevices: boolean;
   devices: JoyConDeviceSummary[];
   leftConnected: boolean;
   rightConnected: boolean;
@@ -17,7 +16,7 @@ interface TactilePanelProps {
   intensity: JoyConIntensity;
   onIntensityChange: (intensity: JoyConIntensity) => void;
   outputStatus: JoyConTactileOutputStatus;
-  onBridgeUrlChange: (url: string) => void;
+  onRequestDevices: () => void;
   onRefresh: () => void;
   onTestPulse: (options: { side: JoyConSide; intensity: JoyConIntensity; duration: number; repeats: number }) => void;
   onNeutral: (side: JoyConSide) => void;
@@ -53,9 +52,8 @@ function batteryText(device: JoyConDeviceSummary | undefined, batteryUnknown: st
 export function TactilePanel({
   tactile,
   onChange,
-  bridgeUrl,
-  bridgeUrlValid,
-  bridgeOnline,
+  webHidSupported,
+  requestingDevices,
   devices,
   leftConnected,
   rightConnected,
@@ -63,7 +61,7 @@ export function TactilePanel({
   intensity,
   onIntensityChange,
   outputStatus,
-  onBridgeUrlChange,
+  onRequestDevices,
   onRefresh,
   onTestPulse,
   onNeutral,
@@ -72,6 +70,8 @@ export function TactilePanel({
 
   const leftDevice = findDevice(devices, 'left');
   const rightDevice = findDevice(devices, 'right');
+  const anyConnected = leftConnected || rightConnected;
+  const tactileReady = leftConnected && rightConnected;
 
   const testSide = (side: JoyConSide) => {
     onTestPulse({ side, intensity, duration: tactile.pulseDurationMs, repeats: 1 });
@@ -91,24 +91,15 @@ export function TactilePanel({
         </label>
       </header>
 
-      <p className="panel-note">{t('tactile.bridgeRequirement')}</p>
-
-      <div className="field-group">
-        <label htmlFor="joycon-bridge-url">{t('tactile.localBridgeUrl')}</label>
-        <input
-          id="joycon-bridge-url"
-          className="text-input"
-          type="url"
-          value={bridgeUrl}
-          onChange={(event) => onBridgeUrlChange(event.target.value)}
-        />
-        {!bridgeUrlValid ? <span className="field-error">{t('tactile.invalidBridgeUrl')}</span> : null}
-      </div>
+      <p className="panel-note">{t('tactile.webHidRequirement')}</p>
 
       <div className="tactile-status-block" aria-live="polite">
         <div className="tactile-status-row">
-          <strong>{t('tactile.joyConBridge')}</strong>
-          <ConnectionBadge connected={bridgeOnline} label={bridgeOnline ? t('tactile.bridgeConnected') : t('tactile.bridgeOffline')} />
+          <strong>{t('tactile.browserJoyConAccess')}</strong>
+          <ConnectionBadge
+            connected={webHidSupported && tactileReady}
+            label={!webHidSupported ? t('tactile.webHidUnsupported') : tactileReady ? t('tactile.joyConsReady') : t('tactile.joyConsMissing')}
+          />
         </div>
         <div className="joycon-device-grid">
           <JoyConStatusRow
@@ -131,29 +122,32 @@ export function TactilePanel({
             {outputStatus.skippedPulseCount > 0 ? ` / ${t('tactile.skippedPulseCount', { value: outputStatus.skippedPulseCount })}` : ''}
           </strong>
         </div>
-        {error && bridgeUrlValid ? <p className="panel-note tactile-error">{error}</p> : null}
+        {error ? <p className="panel-note tactile-error">{error}</p> : null}
         {outputStatus.lastError ? <p className="panel-note tactile-error">{t('tactile.outputError', { error: outputStatus.lastError })}</p> : null}
       </div>
 
       <div className="tactile-actions">
-        <button className="secondary-button compact-button" type="button" disabled={!bridgeUrlValid} onClick={onRefresh}>
+        <button className="secondary-button compact-button" type="button" disabled={!webHidSupported || requestingDevices} onClick={onRequestDevices}>
+          {requestingDevices ? t('common.loading') : t('tactile.addJoyCons')}
+        </button>
+        <button className="secondary-button compact-button" type="button" disabled={!webHidSupported} onClick={onRefresh}>
           {t('tactile.refreshDevices')}
         </button>
-        <button className="secondary-button compact-button" type="button" disabled={!bridgeOnline || !leftConnected} onClick={() => testSide('left')}>
+        <button className="secondary-button compact-button" type="button" disabled={!webHidSupported || !leftConnected} onClick={() => testSide('left')}>
           {t('tactile.testLeft')}
         </button>
-        <button className="secondary-button compact-button" type="button" disabled={!bridgeOnline || !rightConnected} onClick={() => testSide('right')}>
+        <button className="secondary-button compact-button" type="button" disabled={!webHidSupported || !rightConnected} onClick={() => testSide('right')}>
           {t('tactile.testRight')}
         </button>
         <button
           className="secondary-button compact-button"
           type="button"
-          disabled={!bridgeOnline || !leftConnected || !rightConnected}
+          disabled={!webHidSupported || !leftConnected || !rightConnected}
           onClick={() => testSide('both')}
         >
           {t('tactile.testBoth')}
         </button>
-        <button className="danger-button compact-button" type="button" disabled={!bridgeOnline} onClick={() => onNeutral('both')}>
+        <button className="danger-button compact-button" type="button" disabled={!webHidSupported || !anyConnected} onClick={() => onNeutral('both')}>
           {t('tactile.stopRumble')}
         </button>
       </div>
@@ -200,7 +194,7 @@ export function TactilePanel({
         />
       </div>
 
-      <p className="panel-note">{t('tactile.note')}</p>
+      <p className="panel-note">{t('tactile.webHidNote')}</p>
     </section>
   );
 }

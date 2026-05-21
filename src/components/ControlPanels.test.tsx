@@ -68,10 +68,10 @@ describe('AuditoryPanel', () => {
 });
 
 describe('TactilePanel', () => {
-  it('updates tactile settings and renders Joy-Con bridge controls', () => {
+  it('updates tactile settings and renders browser Joy-Con controls', () => {
     const tactile: TactileSettings = { ...DEFAULT_SESSION_STATE.tactile };
     const onChange = vi.fn();
-    const onBridgeUrlChange = vi.fn();
+    const onRequestDevices = vi.fn();
     const onRefresh = vi.fn();
     const onTestPulse = vi.fn();
     const onNeutral = vi.fn();
@@ -80,9 +80,8 @@ describe('TactilePanel', () => {
       <TactilePanel
         tactile={tactile}
         onChange={onChange}
-        bridgeUrl="http://127.0.0.1:5174"
-        bridgeUrlValid
-        bridgeOnline
+        webHidSupported
+        requestingDevices={false}
         devices={[
           { side: 'left', product: 'Joy-Con (L)', battery: { percent: 75 } },
           { side: 'right', product: 'Joy-Con (R)', battery: null },
@@ -99,16 +98,16 @@ describe('TactilePanel', () => {
           lastError: null,
           skippedPulseCount: 0,
         }}
-        onBridgeUrlChange={onBridgeUrlChange}
+        onRequestDevices={onRequestDevices}
         onRefresh={onRefresh}
         onTestPulse={onTestPulse}
         onNeutral={onNeutral}
       />,
     );
 
-    expect(screen.getByText('Connect both Joy-Cons over Bluetooth, then run npm run joycon:bridge on this computer.')).toBeInTheDocument();
-    expect(screen.getByText('Local Joy-Con bridge')).toBeInTheDocument();
-    expect(screen.getByText('Bridge connected')).toBeInTheDocument();
+    expect(screen.getByText('Pair both Joy-Cons over Bluetooth, then add them from the browser device prompt.')).toBeInTheDocument();
+    expect(screen.getByText('Browser Joy-Con access')).toBeInTheDocument();
+    expect(screen.getByText('Joy-Cons ready')).toBeInTheDocument();
     expect(screen.getByText('Left Joy-Con')).toBeInTheDocument();
     expect(screen.getByText('Right Joy-Con')).toBeInTheDocument();
     expect(screen.getByText('75%')).toBeInTheDocument();
@@ -119,8 +118,8 @@ describe('TactilePanel', () => {
     fireEvent.click(enabled);
     expect(onChange).toHaveBeenLastCalledWith({ ...tactile, enabled: true });
 
-    fireEvent.change(screen.getByLabelText('Local bridge URL'), { target: { value: 'http://localhost:5174' } });
-    expect(onBridgeUrlChange).toHaveBeenLastCalledWith('http://localhost:5174');
+    fireEvent.click(screen.getByRole('button', { name: 'Add Joy-Cons' }));
+    expect(onRequestDevices).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Refresh devices' }));
     expect(onRefresh).toHaveBeenCalled();

@@ -4,7 +4,7 @@
 create extension if not exists pgcrypto;
 
 -- Remove obsolete tactile-device persistence from older installs.
--- Joy-Con detection and rumble are local-only through the controller's bridge.
+-- Joy-Con detection and rumble stay local to the controller browser.
 drop function if exists public.upsert_tactile_device(uuid, text, text, text, text, boolean);
 drop table if exists public.tactile_devices;
 

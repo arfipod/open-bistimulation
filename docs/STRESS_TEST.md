@@ -8,7 +8,7 @@ Local run: 2026-05-21T00:52:47+02:00.
 - Local `http://127.0.0.1:5173/` and Vercel `https://open-bistimulation.vercel.app/` point to the same Supabase project: `ilnybknoyafzejsftizy.supabase.co`, with the same public key fingerprint.
 - The current product model is `1 controller : 1 participant` per BLS session. The schema still uses legacy `therapist_token` and `client_token` identifiers; multiple participants can open the same link, but the app does not distinguish them as unique participants.
 - The observed historical test passed without errors up to 50 lightweight sessions: 100 Realtime connections.
-- Tactile Joy-Con output is now local to the controller browser and Joy-Con bridge. Supabase Realtime is used for session state and participant readiness, not hardware pulse broadcasts.
+- Tactile Joy-Con output is now local to the controller browser through WebHID. Supabase Realtime is used for session state and participant readiness, not hardware pulse broadcasts.
 - For production sizing, the limit to watch is not Vercel but Supabase Realtime: concurrent connections, messages per second, and joins per second.
 
 ## Added Tooling
@@ -95,7 +95,7 @@ Recommendation with a 60-70% margin:
 
 - These are short tests, not 30-120 minute soak tests.
 - Internal Supabase Dashboard logs were not reviewed; measurements were client-side only.
-- Local Joy-Con bridge behavior was not tested by this Supabase Realtime stress test.
+- Browser WebHID Joy-Con behavior was not tested by this Supabase Realtime stress test.
 - The app does not truly support `1 controller : n unique participants` in a single session; n participants require n independent sessions or product/data model changes.
 - Joins were limited to 60/s to avoid false `too_many_joins` errors. If many users enter at exactly the same time, the joins-per-second limit also needs to be considered.
 

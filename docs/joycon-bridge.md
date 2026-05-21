@@ -1,8 +1,8 @@
-# Local Joy-Con Bridge
+# Legacy Local Joy-Con Bridge
 
-Open Bistimulation can run in a hosted browser, but Joy-Con HID access is native and local. The Vercel app calls a small Node bridge running on the therapist/operator computer instead of importing `node-hid` in frontend code.
+Open Bistimulation now sends Joy-Con rumble directly from the controller browser through WebHID. The local Node bridge is no longer required by the hosted Vercel app or the local Vite app.
 
-The bridge lives in `scripts/`, uses `node-hid`, and talks to official Nintendo Joy-Con controllers over Bluetooth. It is a local companion process only; it is not deployed to Vercel. Visual and audio cues continue to work in the browser without the bridge.
+This document covers the legacy bridge and CLI diagnostics. The bridge lives in `scripts/`, uses `node-hid`, and talks to official Nintendo Joy-Con controllers over Bluetooth. It is a local companion process only; it is not deployed to Vercel.
 
 This is experimental software. It is not medical advice, not a medical device, and does not provide clinical or safety guarantees. The operator remains responsible for deciding whether and how to use optional tactile output.
 
@@ -20,7 +20,7 @@ Install dependencies from the repository root:
 npm install
 ```
 
-`node-hid` is listed in `optionalDependencies` because it is only needed by the local Node bridge and CLI. The Vite frontend build does not import it.
+`node-hid` is listed in `optionalDependencies` because it is only needed by the legacy local Node bridge and CLI. The Vite frontend build does not import it.
 
 ## Hardware IDs
 
@@ -144,26 +144,11 @@ duration:  20..5000 ms
 repeats:   1..20
 ```
 
-The browser API intentionally rejects `path` and `packetBytes`. The CLI has `--path` for local debugging when you deliberately choose a path from `npm run joycon:list`; do not expose arbitrary HID paths to hosted browser callers.
+The bridge HTTP API intentionally rejects `path` and `packetBytes`. The CLI has `--path` for local debugging when you deliberately choose a path from `npm run joycon:list`; do not expose arbitrary HID paths to hosted browser callers.
 
-## Open The App
+## Current App Flow
 
-1. Start the bridge on the therapist/operator computer:
-
-```sh
-npm run joycon:bridge
-```
-
-2. Open the hosted Vercel app or the local dev app in the controller browser.
-3. Open the therapist/controller UI.
-4. In the tactile panel, set `Local bridge URL` to the bridge address, usually:
-
-```txt
-http://127.0.0.1:5174
-```
-
-5. Confirm the tactile panel shows `Bridge connected`.
-6. Enable tactile output only after the left and right Joy-Con rows are detected.
+For the current app, do not start this bridge. Pair both Joy-Cons over Bluetooth, open the controller UI in a WebHID-capable browser, then use `Add Joy-Cons` in the tactile panel. See [TACTILE_MOBILE.md](TACTILE_MOBILE.md).
 
 ## Packet Length
 
@@ -173,7 +158,7 @@ The default Joy-Con output packet length is `49` bytes, including the report ID 
 node scripts/joycon-rumble.mjs pulse --side left --intensity high --duration 450 --packet-bytes 64
 ```
 
-Keep browser calls on the default bridge contract unless there is a specific local reason to add a guarded option.
+Keep bridge HTTP calls on the default packet length unless there is a specific local reason to add a guarded option.
 
 ## Troubleshooting
 
@@ -185,7 +170,7 @@ Keep browser calls on the default bridge contract unless there is a specific loc
 - Vibration does not stop: run `npm run joycon:neutral`. The pulse implementation also sends neutral frames after each pulse and closes devices in `finally` blocks.
 - Bridge CORS failure: add the frontend origin to `JOYCON_ALLOWED_ORIGINS`. Include the full scheme, host, and port.
 - Hosted build concerns: the native dependency is optional and isolated to `scripts/`; `npm run build` for Vite does not import `node-hid`.
-- App shows `Bridge offline`: confirm `npm run joycon:bridge` is still running, the `Local bridge URL` matches the host and port, and the app origin is included in `JOYCON_ALLOWED_ORIGINS`.
+- Legacy bridge callers show `Bridge offline`: confirm `npm run joycon:bridge` is still running, the bridge URL matches the host and port, and the app origin is included in `JOYCON_ALLOWED_ORIGINS`.
 - Pulse request times out: check that both Joy-Cons are awake, then run `npm run joycon:neutral` before testing again.
 
 ## Manual Verification Checklist
@@ -195,7 +180,6 @@ Keep browser calls on the default bridge contract unless there is a specific loc
 - [ ] `npm run joycon:right` vibrates only right.
 - [ ] `npm run joycon:both` vibrates both.
 - [ ] `npm run joycon:neutral` stops rumble.
-- [ ] Therapist UI shows bridge connected.
-- [ ] Tactile enabled + running session alternates left/right.
-- [ ] Pause/stop sends neutral.
-- [ ] Visual/audio still work with bridge offline.
+- [ ] Legacy bridge status endpoint returns `ok: true`.
+- [ ] Tactile enabled + running session alternates left/right through WebHID in the current app.
+- [ ] Pause/stop sends neutral in the current app.
