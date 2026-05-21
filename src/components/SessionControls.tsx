@@ -8,13 +8,13 @@ import { SessionStats } from './SessionStats';
 interface SessionControlsProps {
   state: SessionState;
   serverTimeOffsetMs: number;
-  roundDurationMs: number;
+  roundDurationMs: number | null;
   onStart: () => void;
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
   onReset: () => void;
-  onRoundDurationChange: (durationMs: number) => void;
+  onRoundDurationChange: (durationMs: number | null) => void;
   onSavePreferences: () => void;
   busy?: boolean;
 }
@@ -38,18 +38,18 @@ export function SessionControls({
   busy = false,
 }: SessionControlsProps) {
   const { t } = useI18n();
-  const [durationDraft, setDurationDraft] = useState(() => formatElapsedTime(roundDurationMs));
+  const [durationDraft, setDurationDraft] = useState(() => formatRoundDuration(roundDurationMs, t('controls.free')));
   useTicker(250);
   const isRunning = state.status === 'running';
   const isPaused = state.status === 'paused';
   const isStopping = state.status === 'stopping';
   const controlsDisabled = busy || isStopping;
   const elapsedMs = getElapsedMs(state, getServerNowMs(serverTimeOffsetMs));
-  const remainingMs = Math.max(0, roundDurationMs - elapsedMs);
+  const remainingMs = roundDurationMs === null ? null : Math.max(0, roundDurationMs - elapsedMs);
 
   useEffect(() => {
-    setDurationDraft(formatElapsedTime(roundDurationMs));
-  }, [roundDurationMs]);
+    setDurationDraft(formatRoundDuration(roundDurationMs, t('controls.free')));
+  }, [roundDurationMs, t]);
 
   const setDuration = (durationMs: number) => {
     const nextDuration = Math.min(MAX_ROUND_DURATION_MS, Math.max(MIN_ROUND_DURATION_MS, durationMs));
@@ -57,9 +57,24 @@ export function SessionControls({
     setDurationDraft(formatElapsedTime(nextDuration));
   };
 
+  const setFreeDuration = () => {
+    onRoundDurationChange(null);
+    setDurationDraft(t('controls.free'));
+  };
+
   const handleDurationBlur = () => {
-    const parsedDuration = parseDurationInput(durationDraft);
-    setDuration(parsedDuration ?? roundDurationMs);
+    const parsedDuration = parseDurationInput(durationDraft, t('controls.free'));
+    if (parsedDuration === 'free') {
+      setFreeDuration();
+      return;
+    }
+
+    if (parsedDuration === null) {
+      setDurationDraft(formatRoundDuration(roundDurationMs, t('controls.free')));
+      return;
+    }
+
+    setDuration(parsedDuration);
   };
 
   return (
@@ -83,22 +98,38 @@ export function SessionControls({
         </div>
         <div className="round-timer-display">
           <span>{t('controls.remaining')}</span>
-          <strong>{formatElapsedTime(remainingMs)}</strong>
+          <strong>{remainingMs === null ? t('controls.free') : formatElapsedTime(remainingMs)}</strong>
         </div>
         <div className="round-timer-actions" aria-label={t('controls.presets')}>
           <button
-            className="secondary-button compact-button"
+            className={`secondary-button compact-button ${roundDurationMs === null ? 'is-selected' : ''}`}
             type="button"
             disabled={controlsDisabled}
-            onClick={() => setDuration(roundDurationMs - ROUND_DURATION_STEP_MS)}
+            onClick={setFreeDuration}
+          >
+            {t('controls.free')}
+          </button>
+          <button
+            className="secondary-button compact-button"
+            type="button"
+            disabled={controlsDisabled || roundDurationMs === null}
+            onClick={() => {
+              if (roundDurationMs !== null) {
+                setDuration(roundDurationMs - ROUND_DURATION_STEP_MS);
+              }
+            }}
           >
             {t('controls.minusTen')}
           </button>
           <button
             className="secondary-button compact-button"
             type="button"
-            disabled={controlsDisabled}
-            onClick={() => setDuration(roundDurationMs + ROUND_DURATION_STEP_MS)}
+            disabled={controlsDisabled || roundDurationMs === null}
+            onClick={() => {
+              if (roundDurationMs !== null) {
+                setDuration(roundDurationMs + ROUND_DURATION_STEP_MS);
+              }
+            }}
           >
             {t('controls.plusTen')}
           </button>
@@ -152,11 +183,15 @@ export function SessionControls({
   );
 }
 
-function parseDurationInput(value: string): number | null {
-  const normalized = value.trim();
+function formatRoundDuration(durationMs: number | null, freeLabel: string): string {
+  return durationMs === null ? freeLabel : formatElapsedTime(durationMs);
+}
 
-  if (!normalized) {
-    return null;
+function parseDurationInput(value: string, freeLabel: string): number | 'free' | null {
+  const normalized = value.trim().toLowerCase();
+
+  if (!normalized || normalized === freeLabel.toLowerCase() || normalized === 'free' || normalized === 'libre') {
+    return 'free';
   }
 
   if (!normalized.includes(':')) {

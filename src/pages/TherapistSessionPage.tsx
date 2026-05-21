@@ -40,7 +40,7 @@ interface TherapistSessionPageProps {
 }
 
 const STALE_AFTER_MS = 15_000;
-const DEFAULT_ROUND_DURATION_MS = 5 * 60_000;
+const DEFAULT_ROUND_DURATION_MS: number | null = null;
 
 function emptyDevice(side: TactileSide): TactileDeviceStatus {
   return {
@@ -69,7 +69,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
-  const [roundDurationMs, setRoundDurationMs] = useState(DEFAULT_ROUND_DURATION_MS);
+  const [roundDurationMs, setRoundDurationMs] = useState<number | null>(DEFAULT_ROUND_DURATION_MS);
   const autoStopStartedRef = useRef(false);
 
   const clock = useServerClock();
@@ -178,7 +178,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
 
     const elapsedMs = getElapsedMs(state, getServerNowMs(clock.offsetMs));
 
-    if (elapsedMs < roundDurationMs || autoStopStartedRef.current) {
+    if (roundDurationMs === null || elapsedMs < roundDurationMs || autoStopStartedRef.current) {
       return;
     }
 
