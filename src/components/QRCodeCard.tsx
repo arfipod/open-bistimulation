@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { copyToClipboard } from '../lib/url';
+import { useI18n } from '../lib/i18n';
 
 interface QRCodeCardProps {
   title: string;
@@ -11,6 +12,7 @@ interface QRCodeCardProps {
 export function QRCodeCard({ title, url, helper }: QRCodeCardProps) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     let active = true;
@@ -34,10 +36,10 @@ export function QRCodeCard({ title, url, helper }: QRCodeCardProps) {
   return (
     <article className="qr-card">
       <h3>{title}</h3>
-      {dataUrl ? <img src={dataUrl} alt={`QR ${title}`} /> : <div className="qr-placeholder">Generando QR…</div>}
+      {dataUrl ? <img src={dataUrl} alt={`QR ${title}`} /> : <div className="qr-placeholder">{t('common.generatingQr')}</div>}
       <p>{helper}</p>
       <button className="secondary-button" type="button" onClick={handleCopy}>
-        {copied ? 'Copiado' : 'Copiar enlace'}
+        {copied ? t('common.copied') : t('common.copyLink')}
       </button>
     </article>
   );

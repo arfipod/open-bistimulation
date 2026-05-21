@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionBroadcastMessage, SessionPreferences, SessionState, TactileDeviceStatus, TactileSide } from '../domain/sessionTypes';
-import { getServerNowMs, pausePlayback, resetPlaybackCounters, resumePlayback, retimeMotionForVisualChange, startPlayback, stopPlayback } from '../domain/motion';
+import { formatElapsedTime, getElapsedMs, getServerNowMs, pausePlayback, resetPlaybackCounters, resumePlayback, retimeMotionForVisualChange, startPlayback, stopPlayback } from '../domain/motion';
 import { endBlsSession, getBlsSession, getServerTimeMs, saveTherapistPreferences, saveTherapistState } from '../lib/sessionApi';
 import { saveLocalPreferences } from '../lib/localStorage';
 import { clientUrl } from '../lib/url';
+import { useI18n } from '../lib/i18n';
 import { useServerClock } from '../hooks/useServerClock';
 import { useSessionRealtime } from '../hooks/useSessionRealtime';
 import { useTactilePulseEmitter } from '../hooks/useTactilePulseEmitter';
@@ -26,6 +27,7 @@ interface TherapistSessionPageProps {
 }
 
 const STALE_AFTER_MS = 15_000;
+const DEFAULT_ROUND_DURATION_MS = 5 * 60_000;
 
 function emptyDevice(side: TactileSide): TactileDeviceStatus {
   return {
@@ -54,9 +56,12 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const [roundDurationMs, setRoundDurationMs] = useState(DEFAULT_ROUND_DURATION_MS);
+  const autoStopStartedRef = useRef(false);
 
   const clock = useServerClock();
   const renderTick = useTicker(1000);
+  const { t } = useI18n();
 
   const handleMessage = useCallback((message: SessionBroadcastMessage) => {
     if (message.kind === 'CLIENT_READY') {
@@ -86,7 +91,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
 
   useEffect(() => {
     if (!token) {
-      setError('Missing therapist token in the URL.');
+      setError(t('session.missingTherapistToken'));
       return;
     }
 
@@ -102,7 +107,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
         }
 
         if (session.role !== 'therapist') {
-          setError('This link does not have therapist permissions.');
+          setError(t('session.therapistPermissions'));
           return;
         }
 
@@ -110,7 +115,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
         setClientToken(session.clientToken ?? null);
       } catch (nextError) {
         if (active) {
-          setError(nextError instanceof Error ? nextError.message : 'Could not load the session.');
+          setError(nextError instanceof Error ? nextError.message : t('session.loadError'));
         }
       }
     }
@@ -120,7 +125,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
     return () => {
       active = false;
     };
-  }, [sessionId, token]);
+  }, [sessionId, t, token]);
 
   const commitState = useCallback(
     async (nextState: SessionState) => {
@@ -143,14 +148,40 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
 
       const nextState = recipe(state);
       void commitState({ ...nextState, version: nextState.version + 1 }).catch((nextError) => {
-        setError(nextError instanceof Error ? nextError.message : 'No se pudo guardar el estado.');
+        setError(nextError instanceof Error ? nextError.message : t('session.saveStateError'));
       });
     },
-    [commitState, state],
+    [commitState, state, t],
   );
 
   useTactilePulseEmitter({ state: state ?? undefinedState, serverTimeOffsetMs: clock.offsetMs, send });
   useAudioBls({ state: state ?? undefinedState, serverTimeOffsetMs: clock.offsetMs, unlocked: audioUnlocked, role: 'therapist' });
+
+  useEffect(() => {
+    if (!state || state.status !== 'running') {
+      autoStopStartedRef.current = false;
+      return;
+    }
+
+    const elapsedMs = getElapsedMs(state, getServerNowMs(clock.offsetMs));
+
+    if (elapsedMs < roundDurationMs || autoStopStartedRef.current) {
+      return;
+    }
+
+    autoStopStartedRef.current = true;
+    setBusy(true);
+    void getServerTimeMs()
+      .then((serverMs) => commitState(stopPlayback(state, serverMs)))
+      .then(() => {
+        setNotice(t('session.roundFinished', { duration: formatElapsedTime(roundDurationMs) }));
+        window.setTimeout(() => setNotice(null), 2500);
+      })
+      .catch((nextError) => {
+        setError(nextError instanceof Error ? nextError.message : t('session.saveStateError'));
+      })
+      .finally(() => setBusy(false));
+  }, [clock.offsetMs, commitState, renderTick, roundDurationMs, state, t]);
 
   const nowForStale = Date.now() + renderTick * 0;
   const normalizedLeft = useMemo(() => normalizeDevice(leftDevice, nowForStale), [leftDevice, nowForStale]);
@@ -162,14 +193,25 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   }
 
   if (!state || !clientToken || !token) {
-    return <LoadingView message="Opening therapist panel…" />;
+    return <LoadingView message={t('loading.therapist')} />;
   }
 
   const handleStart = async () => {
     setBusy(true);
     try {
       const serverMs = await getServerTimeMs();
-      await commitState(startPlayback(state, serverMs + 300));
+      const stateToStart =
+        state.status === 'stopped'
+          ? {
+              ...state,
+              elapsedBeforePauseMs: 0,
+              motionElapsedBeforePauseMs: 0,
+              startedAtMs: null,
+              motionStartedAtMs: null,
+              pausedAtMs: null,
+            }
+          : state;
+      await commitState(startPlayback(stateToStart, serverMs + 300));
     } finally {
       setBusy(false);
     }
@@ -218,7 +260,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
 
     saveLocalPreferences(preferences);
     await saveTherapistPreferences(sessionId, token, preferences);
-    setNotice('Preferences saved locally and in Supabase for this session.');
+    setNotice(t('session.preferencesSaved'));
     window.setTimeout(() => setNotice(null), 2500);
   };
 
@@ -236,17 +278,17 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   return (
     <main className="therapist-page">
       <AppHeader
-        title="Therapist panel"
+        title={t('session.therapistPanel')}
         connected={realtimeStatus === 'connected'}
-        connectionLabel={realtimeStatus === 'connected' ? 'Realtime conectado' : 'Realtime desconectado'}
+        connectionLabel={realtimeStatus === 'connected' ? t('session.realtimeConnected') : t('session.realtimeDisconnected')}
         actions={
           <>
-            <ConnectionBadge connected={clientConnected} label={clientConnected ? 'Cliente conectado' : 'Sin cliente'} />
+            <ConnectionBadge connected={clientConnected} label={clientConnected ? t('common.clientConnected') : t('common.noClient')} />
             <button className="secondary-button" type="button" onClick={() => window.open(clientUrl(sessionId, clientToken), '_blank')}>
-              Previsualizar cliente
+              {t('session.previewClient')}
             </button>
             <button className="danger-button" type="button" disabled={busy} onClick={handleEndSession}>
-              End session
+              {t('session.endSession')}
             </button>
           </>
         }
@@ -262,11 +304,13 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
           <SessionControls
             state={state}
             serverTimeOffsetMs={clock.offsetMs}
+            roundDurationMs={roundDurationMs}
             onStart={handleStart}
             onPause={handlePause}
             onResume={handleResume}
             onStop={handleStop}
             onReset={handleReset}
+            onRoundDurationChange={setRoundDurationMs}
             onSavePreferences={() => void handleSavePreferences()}
             busy={busy}
           />
@@ -275,7 +319,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
         <div className="middle-column">
           <AuditoryPanel audio={state.audio} onChange={(audio) => patchState((current) => ({ ...current, audio }))} />
           <button className="secondary-button full-width" type="button" onClick={() => setAudioUnlocked(true)}>
-            {audioUnlocked ? 'Therapist audio enabled' : 'Enable local audio'}
+            {audioUnlocked ? t('session.localAudioEnabled') : t('session.enableLocalAudio')}
           </button>
           <ClientPreview state={state} serverTimeOffsetMs={clock.offsetMs} />
         </div>
@@ -287,7 +331,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
             rightDevice={normalizedRight}
             onChange={(tactile) => patchState((current) => ({ ...current, tactile }))}
           />
-          {clock.error ? <div className="warning-box">Reloj servidor: {clock.error}</div> : null}
+          {clock.error ? <div className="warning-box">{t('session.serverClock')}: {clock.error}</div> : null}
           {notice ? <div className="success-box">{notice}</div> : null}
         </div>
       </div>

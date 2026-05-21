@@ -4,10 +4,13 @@ import { createBlsSession } from '../lib/sessionApi';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { loadLocalPreferences } from '../lib/localStorage';
 import { therapistUrl } from '../lib/url';
+import { useI18n } from '../lib/i18n';
+import { AppHeader } from '../components/AppHeader';
 
 export function LandingPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useI18n();
 
   const handleCreate = async () => {
     setError(null);
@@ -24,54 +27,49 @@ export function LandingPage() {
       const session = await createBlsSession(state, preferences);
 
       if (!session.therapistToken) {
-        throw new Error('The backend did not return a therapist token.');
+        throw new Error(t('session.backendTokenError'));
       }
 
       window.location.assign(therapistUrl(session.id, session.therapistToken));
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Could not create session.');
+      setError(nextError instanceof Error ? nextError.message : t('session.createError'));
       setIsCreating(false);
     }
   };
 
   return (
-    <main className="landing-page">
-      <section className="hero panel">
-        <span className="eyebrow">Private remote BLS MVP</span>
-        <h1>Open Binstimulation</h1>
-        <p>
-          Therapist-controlled bilateral stimulation sessions: visual, auditory, and tactile using two
-          companion phones with browser vibration.
-        </p>
+    <>
+      <AppHeader title="" />
+      <main className="landing-page">
+        <section className="hero panel">
+          <span className="eyebrow">{t('landing.eyebrow')}</span>
+          <h1>Open Binstimulation</h1>
+          <p>{t('landing.description')}</p>
 
-        {!isSupabaseConfigured ? (
-          <div className="warning-box">
-            Supabase environment variables are missing. Copy <code>.env.example</code> to <code>.env.local</code> and fill in
-            <code> SUPABASE_URL</code> and <code> SUPABASE_ANON_KEY</code>.
+          {!isSupabaseConfigured ? <div className="warning-box">{t('landing.supabaseWarning')}</div> : null}
+
+          {error ? <div className="error-box">{error}</div> : null}
+
+          <button className="primary-button hero-button" type="button" onClick={handleCreate} disabled={isCreating || !isSupabaseConfigured}>
+            {isCreating ? t('landing.creating') : t('landing.create')}
+          </button>
+
+          <div className="hero-grid">
+            <article>
+              <strong>{t('landing.visualTitle')}</strong>
+              <span>{t('landing.visualText')}</span>
+            </article>
+            <article>
+              <strong>{t('landing.audioTitle')}</strong>
+              <span>{t('landing.audioText')}</span>
+            </article>
+            <article>
+              <strong>{t('landing.tactileTitle')}</strong>
+              <span>{t('landing.tactileText')}</span>
+            </article>
           </div>
-        ) : null}
-
-        {error ? <div className="error-box">{error}</div> : null}
-
-        <button className="primary-button hero-button" type="button" onClick={handleCreate} disabled={isCreating || !isSupabaseConfigured}>
-          {isCreating ? 'Creating session…' : 'Create BLS session'}
-        </button>
-
-        <div className="hero-grid">
-          <article>
-            <strong>Visual</strong>
-            <span>Color, background, speed, position, and horizontal, vertical, diagonal, and infinity directions.</span>
-          </article>
-          <article>
-            <strong>Auditory</strong>
-            <span>Synthetic sounds with left/right stereo panning using the Web Audio API.</span>
-          </article>
-          <article>
-            <strong>Tactile</strong>
-            <span>QR pairing for two phones with alternating vibration via JavaScript.</span>
-          </article>
-        </div>
-      </section>
-    </main>
+        </section>
+      </main>
+    </>
   );
 }

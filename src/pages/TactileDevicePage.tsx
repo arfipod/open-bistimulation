@@ -3,8 +3,10 @@ import type { SessionBroadcastMessage, TactileSide } from '../domain/sessionType
 import { getServerNowMs } from '../domain/motion';
 import { getBlsSession, upsertTactileDevice } from '../lib/sessionApi';
 import { getOrCreateLocalId } from '../lib/localStorage';
+import { useI18n } from '../lib/i18n';
 import { useServerClock } from '../hooks/useServerClock';
 import { useSessionRealtime } from '../hooks/useSessionRealtime';
+import { AppHeader } from '../components/AppHeader';
 import { ErrorView } from '../components/ErrorView';
 import { LoadingView } from '../components/LoadingView';
 
@@ -23,10 +25,11 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
   const [lastPulseAt, setLastPulseAt] = useState<string | null>(null);
   const [sessionEnded, setSessionEnded] = useState(false);
   const clock = useServerClock();
+  const { t } = useI18n();
 
   const deviceId = useMemo(() => getOrCreateLocalId(`open-binstimulation.tactile.${sessionId}.${side}`), [sessionId, side]);
   const supported = typeof navigator !== 'undefined' && 'vibrate' in navigator;
-  const label = side === 'left' ? 'Left phone' : 'Right phone';
+  const label = side === 'left' ? t('common.leftPhone') : t('common.rightPhone');
 
   const handleMessage = useCallback(
     (message: SessionBroadcastMessage) => {
@@ -48,7 +51,7 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
 
   useEffect(() => {
     if (!token) {
-      setError('Falta el token de cliente en la URL.');
+      setError(t('client.missingToken'));
       return;
     }
 
@@ -65,7 +68,7 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
         }
       } catch (nextError) {
         if (active) {
-          setError(nextError instanceof Error ? nextError.message : 'Could not pair the phone.');
+          setError(nextError instanceof Error ? nextError.message : t('session.loadError'));
         }
       }
     }
@@ -78,7 +81,7 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
         void upsertTactileDevice(sessionId, token, side, deviceId, label, false);
       }
     };
-  }, [deviceId, label, sessionId, side, token]);
+  }, [deviceId, label, sessionId, side, t, token]);
 
   useEffect(() => {
     if (realtimeStatus !== 'connected' || !loaded) {
@@ -110,16 +113,14 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
 
   const handleEnable = () => {
     if (!supported) {
-      setActivationNotice('Este navegador no expone la API de vibracion. Prueba Chrome o Samsung Internet en Android.');
+      setActivationNotice(t('tactileDevice.enableNotice'));
       return;
     }
 
     const accepted = navigator.vibrate([80, 40, 80]);
 
     if (!accepted) {
-      setActivationNotice(
-        'El navegador rechazo la vibracion. Revisa modo silencio, No molestar y ajustes de vibracion del sistema.',
-      );
+      setActivationNotice(t('tactileDevice.rejected'));
       return;
     }
 
@@ -132,9 +133,7 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
       const accepted = navigator.vibrate([120, 50, 120]);
 
       if (!accepted) {
-        setActivationNotice(
-          'El navegador rechazo la vibracion. Revisa modo silencio, No molestar y ajustes de vibracion del sistema.',
-        );
+        setActivationNotice(t('tactileDevice.rejected'));
       }
     }
   };
@@ -144,58 +143,57 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
   }
 
   if (!loaded) {
-    return <LoadingView message="Pairing tactile phone…" />;
+    return <LoadingView message={t('loading.tactile')} />;
   }
 
   if (sessionEnded) {
-    return <ErrorView title="Session ended" message="The therapist has ended this session." />;
+    return <ErrorView title={t('client.sessionEndedTitle')} message={t('client.sessionEndedMessage')} />;
   }
 
   return (
-    <main className="tactile-page">
-      <section className="panel tactile-device-card">
-        <span className="eyebrow">Tactile device</span>
-        <h1>{label}</h1>
-        <p>
-          This phone will vibrate when the therapist emits <strong>{side === 'left' ? 'left' : 'right'}</strong>.
-        </p>
+    <>
+      <AppHeader title="" />
+      <main className="tactile-page">
+        <section className="panel tactile-device-card">
+          <span className="eyebrow">{t('tactileDevice.title')}</span>
+          <h1>{label}</h1>
+          <p>{t('tactileDevice.description', { side: side === 'left' ? t('common.left') : t('common.right') })}</p>
 
-        <div className={`support-box ${supported ? 'ok' : 'bad'}`}>
-          {supported
-            ? 'Este navegador expone navigator.vibrate(). Pulsa activar para permitir vibraciones.'
-            : 'This browser does not support the Vibration API. Use Android with Chrome or Samsung Internet.'}
-        </div>
+          <div className={`support-box ${supported ? 'ok' : 'bad'}`}>
+            {supported ? t('tactileDevice.supported') : t('tactileDevice.unsupported')}
+          </div>
 
-        {activationNotice ? <div className="warning-box">{activationNotice}</div> : null}
+          {activationNotice ? <div className="warning-box">{activationNotice}</div> : null}
 
-        <div className="device-metrics">
-          <div>
-            <span>Realtime</span>
-            <strong>{realtimeStatus === 'connected' ? 'Connected' : 'Reconnecting'}</strong>
+          <div className="device-metrics">
+            <div>
+              <span>{t('tactileDevice.realtime')}</span>
+              <strong>{realtimeStatus === 'connected' ? t('common.connected') : t('common.reconnecting')}</strong>
+            </div>
+            <div>
+              <span>{t('tactileDevice.status')}</span>
+              <strong>{enabled ? t('tactileDevice.vibrationEnabled') : t('tactileDevice.pendingActivation')}</strong>
+            </div>
+            <div>
+              <span>{t('tactileDevice.pulsesReceived')}</span>
+              <strong>{pulseCount}</strong>
+            </div>
+            <div>
+              <span>{t('tactileDevice.lastPulse')}</span>
+              <strong>{lastPulseAt ?? '—'}</strong>
+            </div>
           </div>
-          <div>
-            <span>Estado</span>
-            <strong>{enabled ? 'Vibration enabled' : 'Pending activation'}</strong>
-          </div>
-          <div>
-            <span>Pulsos recibidos</span>
-            <strong>{pulseCount}</strong>
-          </div>
-          <div>
-            <span>Last pulse</span>
-            <strong>{lastPulseAt ?? '—'}</strong>
-          </div>
-        </div>
 
-        <div className="control-actions tactile-actions">
-          <button className="primary-button" type="button" disabled={!supported || enabled} onClick={handleEnable}>
-            {enabled ? 'Vibration enabled' : 'Enable vibration'}
-          </button>
-          <button className="secondary-button" type="button" disabled={!supported} onClick={handleTest}>
-            Test vibration
-          </button>
-        </div>
-      </section>
-    </main>
+          <div className="control-actions tactile-actions">
+            <button className="primary-button" type="button" disabled={!supported || enabled} onClick={handleEnable}>
+              {enabled ? t('tactileDevice.vibrationEnabled') : t('tactileDevice.enableVibration')}
+            </button>
+            <button className="secondary-button" type="button" disabled={!supported} onClick={handleTest}>
+              {t('tactileDevice.testVibration')}
+            </button>
+          </div>
+        </section>
+      </main>
+    </>
   );
 }

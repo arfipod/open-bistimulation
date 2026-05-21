@@ -1,29 +1,32 @@
 import { BACKGROUND_COLORS, VISUAL_COLORS } from '../domain/defaults';
 import type { VisualDirection, VisualSettings, VerticalPosition } from '../domain/sessionTypes';
+import { useI18n } from '../lib/i18n';
 
 interface VisualPanelProps {
   visual: VisualSettings;
   onChange: (next: VisualSettings) => void;
 }
 
-const directions: Array<{ value: VisualDirection; label: string }> = [
-  { value: 'horizontal', label: 'Horizontal' },
-  { value: 'vertical', label: 'Vertical' },
-  { value: 'diagonal', label: 'Diagonal' },
-  { value: 'infinity', label: 'Infinito' },
+const directions: Array<{ value: VisualDirection; labelKey: 'visual.horizontal' | 'visual.vertical' | 'visual.diagonal' | 'visual.infinity' }> = [
+  { value: 'horizontal', labelKey: 'visual.horizontal' },
+  { value: 'vertical', labelKey: 'visual.vertical' },
+  { value: 'diagonal', labelKey: 'visual.diagonal' },
+  { value: 'infinity', labelKey: 'visual.infinity' },
 ];
 
-const positions: Array<{ value: VerticalPosition; label: string }> = [
-  { value: 'top', label: 'Arriba' },
-  { value: 'center', label: 'Centro' },
-  { value: 'bottom', label: 'Abajo' },
+const positions: Array<{ value: VerticalPosition; labelKey: 'visual.top' | 'visual.center' | 'visual.bottom' }> = [
+  { value: 'top', labelKey: 'visual.top' },
+  { value: 'center', labelKey: 'visual.center' },
+  { value: 'bottom', labelKey: 'visual.bottom' },
 ];
 
 export function VisualPanel({ visual, onChange }: VisualPanelProps) {
+  const { t } = useI18n();
+
   return (
     <section className="control-panel">
       <header className="panel-header">
-        <h2>Visual</h2>
+        <h2>{t('visual.title')}</h2>
         <label className="switch">
           <input
             type="checkbox"
@@ -35,7 +38,7 @@ export function VisualPanel({ visual, onChange }: VisualPanelProps) {
       </header>
 
       <div className="field-group">
-        <label>Color BLS</label>
+        <label>{t('visual.color')}</label>
         <div className="swatch-row">
           {VISUAL_COLORS.map((color) => (
             <button
@@ -43,7 +46,7 @@ export function VisualPanel({ visual, onChange }: VisualPanelProps) {
               className={`swatch ${visual.color === color ? 'is-selected' : ''}`}
               style={{ backgroundColor: color }}
               type="button"
-              aria-label={`Color ${color}`}
+              aria-label={t('visual.colorAria', { color })}
               onClick={() => onChange({ ...visual, color })}
             />
           ))}
@@ -57,7 +60,7 @@ export function VisualPanel({ visual, onChange }: VisualPanelProps) {
       </div>
 
       <div className="field-group">
-        <label>Fondo</label>
+        <label>{t('visual.background')}</label>
         <div className="swatch-row">
           {BACKGROUND_COLORS.map((background) => (
             <button
@@ -65,7 +68,7 @@ export function VisualPanel({ visual, onChange }: VisualPanelProps) {
               className={`swatch ${visual.background === background ? 'is-selected' : ''}`}
               style={{ backgroundColor: background }}
               type="button"
-              aria-label={`Fondo ${background}`}
+              aria-label={t('visual.backgroundAria', { color: background })}
               onClick={() => onChange({ ...visual, background })}
             />
           ))}
@@ -79,7 +82,7 @@ export function VisualPanel({ visual, onChange }: VisualPanelProps) {
       </div>
 
       <div className="field-group">
-        <label htmlFor="speed">Velocidad: {visual.speed}</label>
+        <label htmlFor="speed">{t('visual.speed', { value: visual.speed })}</label>
         <input
           id="speed"
           type="range"
@@ -92,7 +95,7 @@ export function VisualPanel({ visual, onChange }: VisualPanelProps) {
       </div>
 
       <div className="field-group">
-        <label>Direction</label>
+        <label>{t('visual.direction')}</label>
         <div className="segmented-grid">
           {directions.map((direction) => (
             <button
@@ -101,14 +104,14 @@ export function VisualPanel({ visual, onChange }: VisualPanelProps) {
               className={visual.direction === direction.value ? 'is-selected' : ''}
               onClick={() => onChange({ ...visual, direction: direction.value })}
             >
-              {direction.label}
+              {t(direction.labelKey)}
             </button>
           ))}
         </div>
       </div>
 
       <div className="field-group">
-        <label>Vertical position</label>
+        <label>{t('visual.position')}</label>
         <div className="segmented-grid three">
           {positions.map((position) => (
             <button
@@ -117,14 +120,14 @@ export function VisualPanel({ visual, onChange }: VisualPanelProps) {
               className={visual.verticalPosition === position.value ? 'is-selected' : ''}
               onClick={() => onChange({ ...visual, verticalPosition: position.value })}
             >
-              {position.label}
+              {t(position.labelKey)}
             </button>
           ))}
         </div>
       </div>
 
       <div className="field-group">
-        <label htmlFor="dot-size">Size: {visual.dotSize}px</label>
+        <label htmlFor="dot-size">{t('visual.size', { value: visual.dotSize })}</label>
         <input
           id="dot-size"
           type="range"

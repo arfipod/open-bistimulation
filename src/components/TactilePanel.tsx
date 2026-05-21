@@ -1,4 +1,5 @@
 import type { TactileDeviceStatus, TactileSettings } from '../domain/sessionTypes';
+import { useI18n } from '../lib/i18n';
 import { ConnectionBadge } from './ConnectionBadge';
 
 interface TactilePanelProps {
@@ -9,10 +10,13 @@ interface TactilePanelProps {
 }
 
 export function TactilePanel({ tactile, leftDevice, rightDevice, onChange }: TactilePanelProps) {
+  const { t } = useI18n();
+  const unsupportedSuffix = t('tactile.withoutVibration');
+
   return (
     <section className="control-panel">
       <header className="panel-header">
-        <h2>Tactile</h2>
+        <h2>{t('tactile.title')}</h2>
         <label className="switch">
           <input
             type="checkbox"
@@ -24,12 +28,18 @@ export function TactilePanel({ tactile, leftDevice, rightDevice, onChange }: Tac
       </header>
 
       <div className="device-status-grid">
-        <ConnectionBadge connected={leftDevice.connected} label={`Left phone${leftDevice.unsupported ? ' without vibration' : ''}`} />
-        <ConnectionBadge connected={rightDevice.connected} label={`Right phone${rightDevice.unsupported ? ' without vibration' : ''}`} />
+        <ConnectionBadge
+          connected={leftDevice.connected}
+          label={t('tactile.leftPhone', { suffix: leftDevice.unsupported ? unsupportedSuffix : '' })}
+        />
+        <ConnectionBadge
+          connected={rightDevice.connected}
+          label={t('tactile.rightPhone', { suffix: rightDevice.unsupported ? unsupportedSuffix : '' })}
+        />
       </div>
 
       <div className="field-group">
-        <label htmlFor="pulse-duration">Pulse duration: {tactile.pulseDurationMs} ms</label>
+        <label htmlFor="pulse-duration">{t('tactile.pulseDuration', { value: tactile.pulseDurationMs })}</label>
         <input
           id="pulse-duration"
           type="range"
@@ -42,7 +52,7 @@ export function TactilePanel({ tactile, leftDevice, rightDevice, onChange }: Tac
       </div>
 
       <div className="field-group">
-        <label htmlFor="tactile-gap">Pausa interna: {tactile.gapMs} ms</label>
+        <label htmlFor="tactile-gap">{t('tactile.internalPause', { value: tactile.gapMs })}</label>
         <input
           id="tactile-gap"
           type="range"
@@ -54,9 +64,7 @@ export function TactilePanel({ tactile, leftDevice, rightDevice, onChange }: Tac
         />
       </div>
 
-      <p className="panel-note">
-        Use two Android phones with Chrome/Samsung Internet. Each phone is paired from the client QR.
-      </p>
+      <p className="panel-note">{t('tactile.note')}</p>
     </section>
   );
 }

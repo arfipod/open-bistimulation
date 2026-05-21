@@ -1,22 +1,25 @@
 import type { AudioSettings, AudioSound } from '../domain/sessionTypes';
+import { useI18n } from '../lib/i18n';
 
 interface AuditoryPanelProps {
   audio: AudioSettings;
   onChange: (next: AudioSettings) => void;
 }
 
-const sounds: Array<{ value: AudioSound; label: string }> = [
-  { value: 'snap', label: 'Finger snap' },
-  { value: 'beep', label: 'Beep' },
-  { value: 'bell', label: 'Soft bell' },
-  { value: 'heartbeat', label: 'Heartbeat' },
+const sounds: Array<{ value: AudioSound; labelKey: 'audio.snap' | 'audio.beep' | 'audio.bell' | 'audio.heartbeat' }> = [
+  { value: 'snap', labelKey: 'audio.snap' },
+  { value: 'beep', labelKey: 'audio.beep' },
+  { value: 'bell', labelKey: 'audio.bell' },
+  { value: 'heartbeat', labelKey: 'audio.heartbeat' },
 ];
 
 export function AuditoryPanel({ audio, onChange }: AuditoryPanelProps) {
+  const { t } = useI18n();
+
   return (
     <section className="control-panel">
       <header className="panel-header">
-        <h2>Auditory</h2>
+        <h2>{t('audio.title')}</h2>
         <label className="switch">
           <input
             type="checkbox"
@@ -28,7 +31,7 @@ export function AuditoryPanel({ audio, onChange }: AuditoryPanelProps) {
       </header>
 
       <div className="field-group">
-        <label>Sound</label>
+        <label>{t('audio.sound')}</label>
         <div className="segmented-grid">
           {sounds.map((sound) => (
             <button
@@ -37,14 +40,14 @@ export function AuditoryPanel({ audio, onChange }: AuditoryPanelProps) {
               className={audio.sound === sound.value ? 'is-selected' : ''}
               onClick={() => onChange({ ...audio, sound: sound.value })}
             >
-              {sound.label}
+              {t(sound.labelKey)}
             </button>
           ))}
         </div>
       </div>
 
       <div className="field-group">
-        <label htmlFor="volume">Volumen: {Math.round(audio.volume * 100)}%</label>
+        <label htmlFor="volume">{t('audio.volume', { value: Math.round(audio.volume * 100) })}</label>
         <input
           id="volume"
           type="range"
@@ -62,7 +65,7 @@ export function AuditoryPanel({ audio, onChange }: AuditoryPanelProps) {
           checked={audio.therapistMuted}
           onChange={(event) => onChange({ ...audio, therapistMuted: event.target.checked })}
         />
-        Mute for therapist
+        {t('audio.muteTherapist')}
       </label>
     </section>
   );

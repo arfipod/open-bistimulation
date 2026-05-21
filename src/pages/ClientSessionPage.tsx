@@ -3,11 +3,13 @@ import type { SessionBroadcastMessage, SessionState } from '../domain/sessionTyp
 import { getBlsSession } from '../lib/sessionApi';
 import { getServerNowMs } from '../domain/motion';
 import { tactileUrl } from '../lib/url';
+import { useI18n } from '../lib/i18n';
 import { useAudioBls } from '../hooks/useAudioBls';
 import { useServerClock } from '../hooks/useServerClock';
 import { useSessionRealtime } from '../hooks/useSessionRealtime';
 import { ErrorView } from '../components/ErrorView';
 import { LoadingView } from '../components/LoadingView';
+import { LanguageToggle } from '../components/LanguageToggle';
 import { QRCodeCard } from '../components/QRCodeCard';
 import { StimulusStage } from '../components/StimulusStage';
 
@@ -23,6 +25,7 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
   const [showPairing, setShowPairing] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
   const clock = useServerClock();
+  const { t } = useI18n();
 
   const handleMessage = useCallback((message: SessionBroadcastMessage) => {
     if (message.kind === 'STATE_UPDATED') {
@@ -40,7 +43,7 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
 
   useEffect(() => {
     if (!token) {
-      setError('Falta el token de cliente en la URL.');
+      setError(t('client.missingToken'));
       return;
     }
 
@@ -58,7 +61,7 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
         setState(session.state);
       } catch (nextError) {
         if (active) {
-          setError(nextError instanceof Error ? nextError.message : 'Could not load the session.');
+          setError(nextError instanceof Error ? nextError.message : t('session.loadError'));
         }
       }
     }
@@ -68,7 +71,7 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
     return () => {
       active = false;
     };
-  }, [sessionId, token]);
+  }, [sessionId, t, token]);
 
   useEffect(() => {
     if (realtimeStatus !== 'connected') {
@@ -100,11 +103,11 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
   }
 
   if (!state || !token) {
-    return <LoadingView message="Connecting to therapist…" />;
+    return <LoadingView message={t('loading.client')} />;
   }
 
   if (sessionEnded) {
-    return <ErrorView title="Session ended" message="The therapist has ended this session." />;
+    return <ErrorView title={t('client.sessionEndedTitle')} message={t('client.sessionEndedMessage')} />;
   }
 
   return (
@@ -113,25 +116,26 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
 
       <div className="client-topbar">
         <span className={`client-status ${realtimeStatus === 'connected' ? 'ok' : 'bad'}`}>
-          {realtimeStatus === 'connected' ? 'Connected' : 'Reconnecting'}
+          {realtimeStatus === 'connected' ? t('common.connected') : t('common.reconnecting')}
         </span>
         <button className="secondary-button" type="button" onClick={() => setAudioUnlocked(true)}>
-          {audioUnlocked ? 'Audio enabled' : 'Enable audio'}
+          {audioUnlocked ? t('client.audioEnabled') : t('client.enableAudio')}
         </button>
         <button className="secondary-button" type="button" onClick={() => setShowPairing((current) => !current)}>
-          {showPairing ? 'Hide tactile QR' : 'Tactile QR'}
+          {showPairing ? t('client.hideTactileQr') : t('client.tactileQr')}
         </button>
         <button className="secondary-button" type="button" onClick={() => void document.documentElement.requestFullscreen?.()}>
-          Fullscreen
+          {t('client.fullscreen')}
         </button>
+        <LanguageToggle />
       </div>
 
       {!audioUnlocked && state.audio.enabled ? (
         <div className="join-audio-panel panel">
-          <h1>Enable audio</h1>
-          <p>The browser requires a user gesture to allow stereo audio.</p>
+          <h1>{t('client.enableAudioTitle')}</h1>
+          <p>{t('client.enableAudioBody')}</p>
           <button className="primary-button" type="button" onClick={() => setAudioUnlocked(true)}>
-            Enter and enable audio
+            {t('client.enterEnableAudio')}
           </button>
         </div>
       ) : null}
@@ -139,12 +143,12 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
       {showPairing && tactileLinks ? (
         <section className="pairing-drawer panel">
           <header>
-            <h2>Pair tactile phones</h2>
-            <p>Scan each QR with a different phone. Recommended: Android + Chrome/Samsung Internet.</p>
+            <h2>{t('client.pairTactile')}</h2>
+            <p>{t('client.pairTactileBody')}</p>
           </header>
           <div className="qr-grid">
-            <QRCodeCard title="Left phone" url={tactileLinks.left} helper="This phone will vibrate on left pulses." />
-            <QRCodeCard title="Right phone" url={tactileLinks.right} helper="This phone will vibrate on right pulses." />
+            <QRCodeCard title={t('common.leftPhone')} url={tactileLinks.left} helper={t('client.leftPhoneHelper')} />
+            <QRCodeCard title={t('common.rightPhone')} url={tactileLinks.right} helper={t('client.rightPhoneHelper')} />
           </div>
         </section>
       ) : null}
