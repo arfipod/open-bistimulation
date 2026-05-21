@@ -38,20 +38,20 @@ describe('App routing', () => {
     renderWithI18n(<App />);
 
     expect(screen.getByText('landing page')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Support' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Leave an optional tip to support independent development' })).toBeInTheDocument();
   });
 
   it('renders therapist, client, and tactile routes from the current URL', () => {
     window.history.replaceState({}, '', '/session/s1/therapist?t=tt');
     const { unmount } = renderWithI18n(<App />);
     expect(screen.getByText('therapist page s1 tt')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Support' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Leave an optional tip to support independent development' })).toBeInTheDocument();
     unmount();
 
     window.history.replaceState({}, '', '/session/s2/client?t=ct');
     const client = renderWithI18n(<App />);
     expect(screen.getByText('client page s2 ct')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Support' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Leave an optional tip to support independent development' })).not.toBeInTheDocument();
     client.unmount();
 
     window.history.replaceState({}, '', '/session/s3/tactile/right?t=ct');
