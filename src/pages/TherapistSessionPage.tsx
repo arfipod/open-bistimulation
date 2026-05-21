@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionBroadcastMessage, SessionPreferences, SessionState, TactileDeviceStatus, TactileSide } from '../domain/sessionTypes';
-import { formatElapsedTime, getElapsedMs, getServerNowMs, pausePlayback, resetPlaybackCounters, resumePlayback, retimeMotionForVisualChange, startPlayback, stopPlayback } from '../domain/motion';
+import {
+  completeStopPlayback,
+  formatElapsedTime,
+  getElapsedMs,
+  getServerNowMs,
+  getStoppingDurationMs,
+  isStopTransitionComplete,
+  pausePlayback,
+  resetPlaybackCounters,
+  resumePlayback,
+  retimeMotionForVisualChange,
+  startPlayback,
+  stopPlayback,
+} from '../domain/motion';
 import { endBlsSession, getBlsSession, getServerTimeMs, saveTherapistPreferences, saveTherapistState } from '../lib/sessionApi';
 import { saveLocalPreferences } from '../lib/localStorage';
 import { clientUrl } from '../lib/url';
@@ -171,8 +184,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
 
     autoStopStartedRef.current = true;
     setBusy(true);
-    void getServerTimeMs()
-      .then((serverMs) => commitState(stopPlayback(state, serverMs)))
+    void commitState(stopPlayback(state, getServerNowMs(clock.offsetMs)))
       .then(() => {
         setNotice(t('session.roundFinished', { duration: formatElapsedTime(roundDurationMs) }));
         window.setTimeout(() => setNotice(null), 2500);
@@ -182,6 +194,35 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
       })
       .finally(() => setBusy(false));
   }, [clock.offsetMs, commitState, renderTick, roundDurationMs, state, t]);
+
+  useEffect(() => {
+    if (!state || state.status !== 'stopping') {
+      return;
+    }
+
+    if (state.motionStartedAtMs === null || state.motionStartedAtMs === undefined) {
+      void commitState(completeStopPlayback(state)).catch((nextError) => {
+        setError(nextError instanceof Error ? nextError.message : t('session.saveStateError'));
+      });
+      return;
+    }
+
+    const nowMs = getServerNowMs(clock.offsetMs);
+    const remainingMs = Math.max(0, state.motionStartedAtMs + getStoppingDurationMs(state) - nowMs);
+    const timeout = window.setTimeout(() => {
+      const completeNowMs = getServerNowMs(clock.offsetMs);
+
+      if (!isStopTransitionComplete(state, completeNowMs)) {
+        return;
+      }
+
+      void commitState(completeStopPlayback(state)).catch((nextError) => {
+        setError(nextError instanceof Error ? nextError.message : t('session.saveStateError'));
+      });
+    }, remainingMs + 50);
+
+    return () => window.clearTimeout(timeout);
+  }, [clock.offsetMs, commitState, state, t]);
 
   const nowForStale = Date.now() + renderTick * 0;
   const normalizedLeft = useMemo(() => normalizeDevice(leftDevice, nowForStale), [leftDevice, nowForStale]);
@@ -240,8 +281,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   const handleStop = async () => {
     setBusy(true);
     try {
-      const serverMs = await getServerTimeMs();
-      await commitState(stopPlayback(state, serverMs));
+      await commitState(stopPlayback(state, getServerNowMs(clock.offsetMs)));
     } finally {
       setBusy(false);
     }

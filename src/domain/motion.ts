@@ -16,6 +16,10 @@ export interface MotionSnapshot {
 
 const MIN_SPEED = 1;
 const MAX_SPEED = 20;
+const STOP_EXTRA_PASS_AT_PROGRESS = 0.75;
+const STOP_CENTER_PROGRESS = 1.25;
+const STOP_EXTRA_PASS_CENTER_PROGRESS = 2.25;
+const STOP_DECELERATION_MULTIPLIER = 1.5;
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -51,6 +55,10 @@ export function getMotionElapsedMs(state: SessionState, nowMs: number): number {
 
   if (state.status === 'running' && startedAtMs !== null) {
     return Math.max(0, elapsedBeforePauseMs + nowMs - startedAtMs);
+  }
+
+  if (state.status === 'stopping' && startedAtMs !== null) {
+    return getStoppingMotionElapsedMs(state, nowMs);
   }
 
   return Math.max(0, elapsedBeforePauseMs);
@@ -143,6 +151,62 @@ function getOrderedGlide(elapsedMs: number, cycleMs: number, motionOrder: Motion
   const to = glideForSide(targetSideForSegment(segmentIndex, motionOrder));
 
   return from + (to - from) * progress;
+}
+
+function getStoppingMotionElapsedMs(state: SessionState, nowMs: number): number {
+  const stopStartedAtMs = state.motionStartedAtMs;
+  const motionElapsedBeforeStopMs = state.motionElapsedBeforePauseMs ?? state.elapsedBeforePauseMs;
+
+  if (stopStartedAtMs === null || stopStartedAtMs === undefined) {
+    return 0;
+  }
+
+  const cycleMs = cycleMsFromSpeed(state.visual.speed);
+  const transition = getStopTransition(motionElapsedBeforeStopMs, cycleMs);
+  const durationMs = getStopTransitionDurationMs(transition);
+
+  if (durationMs <= 0) {
+    return 0;
+  }
+
+  const progress = clamp((nowMs - stopStartedAtMs) / durationMs, 0, 1);
+  const easedProgress = Math.sin((progress * Math.PI) / 2);
+  const currentProgress =
+    transition.startProgress + (transition.endProgress - transition.startProgress) * easedProgress;
+
+  return Math.max(0, (currentProgress - 0.25) * cycleMs);
+}
+
+interface StopTransition {
+  startProgress: number;
+  endProgress: number;
+  cycleMs: number;
+}
+
+function getStopTransition(motionElapsedMs: number, cycleMs: number): StopTransition {
+  const startProgress = Math.max(0, motionElapsedMs) / cycleMs + 0.25;
+  const loopProgress = positiveModulo(startProgress, 1);
+  const currentCycle = Math.floor(startProgress);
+  let endProgress =
+    currentCycle + (loopProgress >= STOP_EXTRA_PASS_AT_PROGRESS ? STOP_EXTRA_PASS_CENTER_PROGRESS : STOP_CENTER_PROGRESS);
+
+  if (endProgress <= startProgress) {
+    endProgress += 1;
+  }
+
+  return {
+    startProgress,
+    endProgress,
+    cycleMs,
+  };
+}
+
+function getStopTransitionDurationMs(transition: StopTransition): number {
+  return (transition.endProgress - transition.startProgress) * transition.cycleMs * STOP_DECELERATION_MULTIPLIER;
+}
+
+function positiveModulo(value: number, divisor: number): number {
+  return ((value % divisor) + divisor) % divisor;
 }
 
 function targetSideForSegment(index: number, motionOrder: MotionOrder): TactileSide {
@@ -246,7 +310,22 @@ export function resumePlayback(state: SessionState, serverResumeMs: number): Ses
 export function stopPlayback(state: SessionState, serverStopMs: number): SessionState {
   const elapsed = getElapsedMs(state, serverStopMs);
   const motionElapsed = getMotionElapsedMs(state, serverStopMs);
+  const shouldAnimateStop = elapsed > 0 && state.status !== 'stopped' && state.status !== 'idle';
 
+  return {
+    ...state,
+    version: state.version + 1,
+    status: shouldAnimateStop ? 'stopping' : 'stopped',
+    startedAtMs: null,
+    motionStartedAtMs: shouldAnimateStop ? serverStopMs : null,
+    pausedAtMs: null,
+    elapsedBeforePauseMs: elapsed,
+    motionElapsedBeforePauseMs: shouldAnimateStop ? motionElapsed : 0,
+    setsCompleted: elapsed > 0 ? state.setsCompleted + 1 : state.setsCompleted,
+  };
+}
+
+export function completeStopPlayback(state: SessionState): SessionState {
   return {
     ...state,
     version: state.version + 1,
@@ -254,10 +333,25 @@ export function stopPlayback(state: SessionState, serverStopMs: number): Session
     startedAtMs: null,
     motionStartedAtMs: null,
     pausedAtMs: null,
-    elapsedBeforePauseMs: elapsed,
-    motionElapsedBeforePauseMs: motionElapsed,
-    setsCompleted: elapsed > 0 ? state.setsCompleted + 1 : state.setsCompleted,
+    motionElapsedBeforePauseMs: 0,
   };
+}
+
+export function getStoppingDurationMs(state: SessionState): number {
+  if (state.status !== 'stopping') {
+    return 0;
+  }
+
+  const cycleMs = cycleMsFromSpeed(state.visual.speed);
+  return getStopTransitionDurationMs(getStopTransition(state.motionElapsedBeforePauseMs ?? state.elapsedBeforePauseMs, cycleMs));
+}
+
+export function isStopTransitionComplete(state: SessionState, nowMs: number): boolean {
+  if (state.status !== 'stopping' || state.motionStartedAtMs === null || state.motionStartedAtMs === undefined) {
+    return false;
+  }
+
+  return nowMs - state.motionStartedAtMs >= getStoppingDurationMs(state);
 }
 
 export function resetPlaybackCounters(state: SessionState): SessionState {
@@ -290,7 +384,7 @@ export function retimeMotionForVisualChange(state: SessionState, nextVisual: Vis
   return {
     ...state,
     visual: nextVisual,
-    motionStartedAtMs: state.status === 'running' ? nowMs : null,
+    motionStartedAtMs: state.status === 'running' || state.status === 'stopping' ? nowMs : null,
     motionElapsedBeforePauseMs: nextMotionElapsedMs,
   };
 }

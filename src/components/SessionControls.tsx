@@ -42,6 +42,8 @@ export function SessionControls({
   useTicker(250);
   const isRunning = state.status === 'running';
   const isPaused = state.status === 'paused';
+  const isStopping = state.status === 'stopping';
+  const controlsDisabled = busy || isStopping;
   const elapsedMs = getElapsedMs(state, getServerNowMs(serverTimeOffsetMs));
   const remainingMs = Math.max(0, roundDurationMs - elapsedMs);
 
@@ -87,7 +89,7 @@ export function SessionControls({
           <button
             className="secondary-button compact-button"
             type="button"
-            disabled={busy}
+            disabled={controlsDisabled}
             onClick={() => setDuration(roundDurationMs - ROUND_DURATION_STEP_MS)}
           >
             {t('controls.minusTen')}
@@ -95,7 +97,7 @@ export function SessionControls({
           <button
             className="secondary-button compact-button"
             type="button"
-            disabled={busy}
+            disabled={controlsDisabled}
             onClick={() => setDuration(roundDurationMs + ROUND_DURATION_STEP_MS)}
           >
             {t('controls.plusTen')}
@@ -105,7 +107,7 @@ export function SessionControls({
               key={presetMs}
               className={`secondary-button compact-button ${roundDurationMs === presetMs ? 'is-selected' : ''}`}
               type="button"
-              disabled={busy}
+              disabled={controlsDisabled}
               onClick={() => setDuration(presetMs)}
             >
               {formatElapsedTime(presetMs)}
@@ -114,30 +116,35 @@ export function SessionControls({
         </div>
       </div>
       <div className="control-actions">
-        {!isRunning && !isPaused ? (
-          <button className="primary-button" type="button" disabled={busy} onClick={onStart}>
+        {!isRunning && !isPaused && !isStopping ? (
+          <button className="primary-button" type="button" disabled={controlsDisabled} onClick={onStart}>
             {t('controls.start')}
           </button>
         ) : null}
         {isRunning ? (
-          <button className="secondary-button" type="button" disabled={busy} onClick={onPause}>
+          <button className="secondary-button" type="button" disabled={controlsDisabled} onClick={onPause}>
             {t('controls.pause')}
           </button>
         ) : null}
         {isPaused ? (
-          <button className="primary-button" type="button" disabled={busy} onClick={onResume}>
+          <button className="primary-button" type="button" disabled={controlsDisabled} onClick={onResume}>
             {t('controls.resume')}
           </button>
         ) : null}
         {(isRunning || isPaused) ? (
-          <button className="danger-button" type="button" disabled={busy} onClick={onStop}>
+          <button className="danger-button" type="button" disabled={controlsDisabled} onClick={onStop}>
             {t('controls.stop')}
           </button>
         ) : null}
-        <button className="secondary-button" type="button" disabled={busy} onClick={onReset}>
+        {isStopping ? (
+          <button className="danger-button" type="button" disabled>
+            {t('controls.stopping')}
+          </button>
+        ) : null}
+        <button className="secondary-button" type="button" disabled={controlsDisabled} onClick={onReset}>
           {t('controls.reset')}
         </button>
-        <button className="secondary-button" type="button" disabled={busy} onClick={onSavePreferences}>
+        <button className="secondary-button" type="button" disabled={controlsDisabled} onClick={onSavePreferences}>
           {t('controls.savePreferences')}
         </button>
       </div>
