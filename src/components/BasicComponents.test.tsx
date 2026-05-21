@@ -44,7 +44,7 @@ describe('basic components', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Switch language to Spanish' }));
 
-    expect(screen.getByRole('button', { name: 'Cambiar idioma a ingles' })).toHaveTextContent('ES');
+    expect(screen.getByRole('button', { name: 'Cambiar idioma a inglés' })).toHaveTextContent('ES');
   });
 
   it('renders footer, support widget, loading view, connection badges, and error view', () => {

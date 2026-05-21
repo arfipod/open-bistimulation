@@ -328,6 +328,24 @@ code {
   min-width: 210px;
 }
 
+.public-content {
+  max-width: 760px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.public-content h2 {
+  margin: 0 0 10px;
+  color: #111827;
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  line-height: 1.15;
+}
+
+.public-content p {
+  margin: 0;
+}
+
 .legal-disclaimer {
   max-width: 760px;
   margin-top: 22px;

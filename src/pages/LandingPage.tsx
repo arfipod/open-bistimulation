@@ -55,7 +55,7 @@ export function LandingPage() {
           </button>
 
 
-          <section className="panel" aria-labelledby="landing-public-content-title">
+          <section className="public-content" aria-labelledby="landing-public-content-title">
             <h2 id="landing-public-content-title">{t('landing.publicContentTitle')}</h2>
             <p>{t('landing.publicContentBody')}</p>
           </section>
