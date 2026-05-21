@@ -8,12 +8,17 @@ interface SessionControlsProps {
   state: SessionState;
   serverTimeOffsetMs: number;
   roundDurationMs: number | null;
+  onRoundDurationChange: (durationMs: number | null) => void;
+  busy?: boolean;
+}
+
+interface SessionControlActionsProps {
+  state: SessionState;
   onStart: () => void;
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
   onReset: () => void;
-  onRoundDurationChange: (durationMs: number | null) => void;
   onSavePreferences: () => void;
   busy?: boolean;
 }
@@ -27,22 +32,13 @@ export function SessionControls({
   state,
   serverTimeOffsetMs,
   roundDurationMs,
-  onStart,
-  onPause,
-  onResume,
-  onStop,
-  onReset,
   onRoundDurationChange,
-  onSavePreferences,
   busy = false,
 }: SessionControlsProps) {
   const { t } = useI18n();
   const [durationDraft, setDurationDraft] = useState(() => formatRoundDuration(roundDurationMs, t('controls.free')));
   useTicker(250);
-  const isRunning = state.status === 'running';
-  const isPaused = state.status === 'paused';
-  const isStopping = state.status === 'stopping';
-  const controlsDisabled = busy || isStopping;
+  const controlsDisabled = busy || state.status === 'stopping';
   const elapsedMs = getElapsedMs(state, getServerNowMs(serverTimeOffsetMs));
   const remainingMs = roundDurationMs === null ? null : Math.max(0, roundDurationMs - elapsedMs);
 
@@ -144,40 +140,60 @@ export function SessionControls({
           ))}
         </div>
       </div>
-      <div className="control-actions">
-        {!isRunning && !isPaused && !isStopping ? (
-          <button className="primary-button" type="button" disabled={controlsDisabled} onClick={onStart}>
-            {t('controls.start')}
-          </button>
-        ) : null}
-        {isRunning ? (
-          <button className="secondary-button" type="button" disabled={controlsDisabled} onClick={onPause}>
-            {t('controls.pause')}
-          </button>
-        ) : null}
-        {isPaused ? (
-          <button className="primary-button" type="button" disabled={controlsDisabled} onClick={onResume}>
-            {t('controls.resume')}
-          </button>
-        ) : null}
-        {(isRunning || isPaused) ? (
-          <button className="danger-button" type="button" disabled={controlsDisabled} onClick={onStop}>
-            {t('controls.stop')}
-          </button>
-        ) : null}
-        {isStopping ? (
-          <button className="danger-button" type="button" disabled>
-            {t('controls.stopping')}
-          </button>
-        ) : null}
-        <button className="secondary-button" type="button" disabled={controlsDisabled} onClick={onReset}>
-          {t('controls.reset')}
-        </button>
-        <button className="secondary-button" type="button" disabled={controlsDisabled} onClick={onSavePreferences}>
-          {t('controls.savePreferences')}
-        </button>
-      </div>
     </section>
+  );
+}
+
+export function SessionControlActions({
+  state,
+  onStart,
+  onPause,
+  onResume,
+  onStop,
+  onReset,
+  onSavePreferences,
+  busy = false,
+}: SessionControlActionsProps) {
+  const { t } = useI18n();
+  const isRunning = state.status === 'running';
+  const isPaused = state.status === 'paused';
+  const isStopping = state.status === 'stopping';
+  const controlsDisabled = busy || isStopping;
+
+  return (
+    <div className="control-actions">
+      {!isRunning && !isPaused && !isStopping ? (
+        <button className="primary-button" type="button" disabled={controlsDisabled} onClick={onStart}>
+          {t('controls.start')}
+        </button>
+      ) : null}
+      {isRunning ? (
+        <button className="secondary-button" type="button" disabled={controlsDisabled} onClick={onPause}>
+          {t('controls.pause')}
+        </button>
+      ) : null}
+      {isPaused ? (
+        <button className="primary-button" type="button" disabled={controlsDisabled} onClick={onResume}>
+          {t('controls.resume')}
+        </button>
+      ) : null}
+      {isRunning || isPaused ? (
+        <button className="danger-button" type="button" disabled={controlsDisabled} onClick={onStop}>
+          {t('controls.stop')}
+        </button>
+      ) : null}
+      {isStopping ? (
+        <button className="danger-button" type="button" disabled>
+          {t('controls.stopping')}
+        </button>
+      ) : null}
+      <button className="secondary-button" type="button" disabled={controlsDisabled} onClick={onReset}>
+        {t('controls.reset')}
+      </button>
+      <button className="secondary-button" type="button" disabled={controlsDisabled} onClick={onSavePreferences}>
+        {t('controls.savePreferences')}
+      </button>
+    </div>
   );
 }
 

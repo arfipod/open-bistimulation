@@ -30,7 +30,7 @@ import { ConnectionBadge } from '../components/ConnectionBadge';
 import { ErrorView } from '../components/ErrorView';
 import { InviteClient } from '../components/InviteClient';
 import { LoadingView } from '../components/LoadingView';
-import { SessionControls } from '../components/SessionControls';
+import { SessionControlActions, SessionControls } from '../components/SessionControls';
 import { SessionStats } from '../components/SessionStats';
 import { TactilePanel } from '../components/TactilePanel';
 import { VisualPanel } from '../components/VisualPanel';
@@ -346,13 +346,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
             state={state}
             serverTimeOffsetMs={clock.offsetMs}
             roundDurationMs={roundDurationMs}
-            onStart={handleStart}
-            onPause={handlePause}
-            onResume={handleResume}
-            onStop={handleStop}
-            onReset={handleReset}
             onRoundDurationChange={setRoundDurationMs}
-            onSavePreferences={() => void handleSavePreferences()}
             busy={busy}
           />
         </div>
@@ -374,6 +368,16 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
           />
           <section className="stats-panel panel" aria-label={t('controls.time')}>
             <SessionStats state={state} serverTimeOffsetMs={clock.offsetMs} />
+            <SessionControlActions
+              state={state}
+              onStart={handleStart}
+              onPause={handlePause}
+              onResume={handleResume}
+              onStop={handleStop}
+              onReset={handleReset}
+              onSavePreferences={() => void handleSavePreferences()}
+              busy={busy}
+            />
           </section>
           {clock.error ? <div className="warning-box">{t('session.serverClock')}: {clock.error}</div> : null}
           {notice ? <div className="success-box">{notice}</div> : null}
