@@ -159,13 +159,13 @@ describe('TherapistSessionPage', () => {
     vi.spyOn(Date, 'now').mockReturnValue(0);
   });
 
-  it('shows token and role errors before rendering therapist controls', async () => {
+  it('shows token and role errors before rendering controller controls', async () => {
     renderWithI18n(<TherapistSessionPage sessionId="session-id" />);
-    expect(screen.getByText('Missing therapist token in the URL.')).toBeInTheDocument();
+    expect(screen.getByText('Missing controller token in the URL.')).toBeInTheDocument();
 
     mocks.getBlsSession.mockResolvedValueOnce({ role: 'client', state: makeState(), clientToken: undefined });
     const { unmount } = renderWithI18n(<TherapistSessionPage sessionId="session-id" token="client-token" />);
-    expect(await screen.findByText('This link does not have therapist permissions.')).toBeInTheDocument();
+    expect(await screen.findByText('This link does not have controller permissions.')).toBeInTheDocument();
     unmount();
   });
 

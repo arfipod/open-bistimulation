@@ -118,7 +118,7 @@ export type SessionBroadcastMessage =
     };
 
 export interface RouteInfo {
-  page: 'landing' | 'therapist' | 'client' | 'tactile' | 'not-found';
+  page: 'landing' | 'therapist' | 'client' | 'tactile' | 'legal' | 'privacy' | 'terms' | 'disclaimer' | 'not-found';
   sessionId?: string;
   token?: string;
   side?: TactileSide;

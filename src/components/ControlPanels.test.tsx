@@ -73,7 +73,7 @@ describe('AuditoryPanel', () => {
     fireEvent.change(screen.getByLabelText('Volume: 70%'), { target: { value: '0.25' } });
     expect(onChange).toHaveBeenLastCalledWith({ ...audio, volume: 0.25 });
 
-    fireEvent.click(screen.getByLabelText('Mute for therapist'));
+    fireEvent.click(screen.getByLabelText('Mute for controller'));
     expect(onChange).toHaveBeenLastCalledWith({ ...audio, therapistMuted: false });
   });
 });
@@ -91,8 +91,8 @@ describe('TactilePanel', () => {
       />,
     );
 
-    expect(screen.getByText('Left phone without vibration')).toBeInTheDocument();
-    expect(screen.getByText('Right phone')).toBeInTheDocument();
+    expect(screen.getByText('Left device without vibration')).toBeInTheDocument();
+    expect(screen.getByText('Right device')).toBeInTheDocument();
 
     const enabled = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
     fireEvent.click(enabled);

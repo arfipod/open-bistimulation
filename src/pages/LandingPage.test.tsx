@@ -53,7 +53,7 @@ describe('LandingPage', () => {
     expect(screen.getByRole('button', { name: 'Create BLS session' })).toBeEnabled();
   });
 
-  it('surfaces a clear error when the backend omits the therapist token', async () => {
+  it('surfaces a clear error when the backend omits the controller token', async () => {
     mocks.createBlsSession.mockResolvedValue({
       id: 'session-id',
       role: 'therapist',
@@ -67,6 +67,6 @@ describe('LandingPage', () => {
     renderWithI18n(<LandingPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Create BLS session' }));
 
-    await waitFor(() => expect(screen.getByText('The backend did not return a therapist token.')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('The backend did not return a controller token.')).toBeInTheDocument());
   });
 });

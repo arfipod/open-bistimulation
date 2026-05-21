@@ -6,10 +6,10 @@ Local run: 2026-05-21T00:52:47+02:00.
 
 - The app deployed on Vercel is a static Vite frontend. There are no custom serverless functions on Vercel; the functional bottleneck is Supabase RPC and Supabase Realtime.
 - Local `http://127.0.0.1:5173/` and Vercel `https://open-bistimulation.vercel.app/` point to the same Supabase project: `ilnybknoyafzejsftizy.supabase.co`, with the same public key fingerprint.
-- The current product model is `1 therapist : 1 patient` per BLS session. The schema generates one `therapist_token` and one `client_token`; multiple clients can open the same link, but the app does not distinguish them as unique patients.
+- The current product model is `1 controller : 1 participant` per BLS session. The schema still uses legacy `therapist_token` and `client_token` identifiers; multiple participants can open the same link, but the app does not distinguish them as unique participants.
 - The observed test passed without errors up to:
   - 50 lightweight sessions, without tactile mobile devices: 100 Realtime connections.
-  - 50 complete sessions, with 1 patient and 2 tactile mobile devices: 200 Realtime connections, 100% of expected deliveries for 10 s at the default pulse rate.
+  - 50 complete sessions, with 1 participant and 2 tactile mobile devices: 200 Realtime connections, 100% of expected deliveries for 10 s at the default pulse rate.
   - 20 complete sessions in a high-pulse scenario: 80 Realtime connections, 100% of expected deliveries for 10 s.
 - For production sizing, the limit to watch is not Vercel but Supabase Realtime: concurrent connections, messages per second, and joins per second.
 
@@ -32,11 +32,11 @@ For Realtime, the script creates one independent Supabase client per participant
 | Local | 200 requests, c=20 | 200/200 | 16 ms | 38 ms | 44 ms | 45 ms | Vite dev, HTML + direct module |
 | Vercel | 200 requests, c=20 | 200/200 | 86 ms | 610 ms | 843 ms | 936 ms | HTML + 2 build assets |
 
-There were no HTTP errors. This test only measures frontend delivery; it does not represent clinical session capacity.
+There were no HTTP errors. This test only measures frontend delivery; it does not represent professional session capacity.
 
 ## Lightweight Realtime Tests
 
-Scenario: each session opens 1 therapist + 1 patient, without tactile mobile devices or continuous pulses.
+Scenario: each session opens 1 controller + 1 participant, without tactile mobile devices or continuous pulses.
 
 | Environment | Sessions | Connections | Subscribed | Delivery | RPC p95 | Join p95 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -47,11 +47,11 @@ Scenario: each session opens 1 therapist + 1 patient, without tactile mobile dev
 | Vercel | 25 | 50 | 50 | 100% | 131 ms | 1043 ms |
 | Vercel | 50 | 100 | 100 | 100% | 79 ms | 1999 ms |
 
-Interpretation: 50 therapists treating 50 simultaneous patients without tactile devices passed with margin during the short test window.
+Interpretation: 50 controllers with 50 simultaneous participants without tactile devices passed with margin during the short test window.
 
 ## Complete Realtime Tests
 
-Scenario: each session opens 1 therapist + 1 patient + 2 tactile mobile devices. The tactile mobile devices send heartbeats and the therapist emits pulses.
+Scenario: each session opens 1 controller + 1 participant + 2 tactile mobile devices. The tactile mobile devices send heartbeats and the controller emits pulses.
 
 | Base | Sessions | Connections | Duration | Pulse Hz | Subscribed | Sent | Expected received | Delivery | RPC p95 | Join p95 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -69,7 +69,7 @@ Supabase documents Realtime limits by plan: Free 200 concurrent connections and 
 
 Source: https://supabase.com/docs/guides/realtime/limits
 
-One current therapeutic pair consumes:
+One current controller/participant pair consumes:
 
 | Mode | Connections per session | Approximate messages/s per session |
 | --- | ---: | ---: |
@@ -101,14 +101,14 @@ Recommendation with a 60-70% margin:
 - These are short tests, not 30-120 minute soak tests.
 - Internal Supabase Dashboard logs were not reviewed; measurements were client-side only.
 - Physical phones and `navigator.vibrate()` were not tested, only equivalent Realtime channels.
-- The app does not truly support `1 therapist : n unique patients` in a single session; n patients require n independent sessions or product/data model changes.
+- The app does not truly support `1 controller : n unique participants` in a single session; n participants require n independent sessions or product/data model changes.
 - Joins were limited to 60/s to avoid false `too_many_joins` errors. If many users enter at exactly the same time, the joins-per-second limit also needs to be considered.
 
 ## Conclusion
 
 For the current product state, it is fair to say that:
 
-- 50 therapists with 50 patients without tactile devices was validated locally and on Vercel.
-- 50 therapists with 50 patients and 2 tactile devices per patient was validated against Vercel/Supabase in a short window.
+- 50 controllers with 50 participants without tactile devices were exercised locally and on Vercel.
+- 50 controllers with 50 participants and 2 tactile devices per participant were exercised against Vercel/Supabase in a short window.
 - If the project is on Supabase Free, I would not promise 50 complete sessions with tactile devices in sustained production; I would size closer to 12-15 complete sessions at the default speed, or 4-5 at maximum speed.
 - If the project is on Supabase Pro, a reasonable initial target would be 60-75 complete sessions at the default speed, dropping to 20-25 if frequent maximum-speed use is expected.

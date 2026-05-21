@@ -54,6 +54,17 @@ export function LandingPage() {
             {isCreating ? t('landing.creating') : t('landing.create')}
           </button>
 
+          <aside className="legal-disclaimer" aria-labelledby="landing-legal-title">
+            <strong id="landing-legal-title">{t('landing.disclaimerTitle')}</strong>
+            <ul>
+              <li>{t('landing.disclaimerExperimental')}</li>
+              <li>{t('landing.disclaimerAdvice')}</li>
+              <li>{t('landing.disclaimerDevice')}</li>
+              <li>{t('landing.disclaimerProfessional')}</li>
+              <li>{t('landing.disclaimerIndependent')}</li>
+            </ul>
+          </aside>
+
           <div className="hero-grid">
             <article>
               <strong>{t('landing.visualTitle')}</strong>

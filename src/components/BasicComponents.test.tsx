@@ -58,7 +58,8 @@ describe('basic components', () => {
       </>,
     );
 
-    expect(screen.getByText(/made with/)).toBeInTheDocument();
+    expect(screen.getByText('Open Bistimulation is independent open-source software.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Legal' })).toHaveAttribute('href', '/legal');
     expect(screen.getByRole('link', { name: 'Support' })).toHaveAttribute('href', 'https://ko-fi.com/anrubiof');
     expect(screen.getByText('Loading...')).toBeInTheDocument();
     expect(screen.getByText('Offline')).toHaveClass('is-disconnected');
@@ -93,10 +94,10 @@ describe('basic components', () => {
       value: { writeText },
     });
 
-    renderWithI18n(<QRCodeCard title="Left phone" url="https://app.example/left" helper="Scan me" />);
+    renderWithI18n(<QRCodeCard title="Left device" url="https://app.example/left" helper="Scan me" />);
 
     expect(screen.getByText('Generating QR...')).toBeInTheDocument();
-    expect(await screen.findByRole('img', { name: 'QR Left phone' })).toHaveAttribute('src', 'data:image/png;base64,qr');
+    expect(await screen.findByRole('img', { name: 'QR Left device' })).toHaveAttribute('src', 'data:image/png;base64,qr');
     expect(mocks.toDataURL).toHaveBeenCalledWith('https://app.example/left', { width: 180, margin: 1 });
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));

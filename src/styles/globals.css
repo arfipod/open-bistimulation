@@ -42,10 +42,6 @@ body {
   flex: 1 0 auto;
 }
 
-.app-shell-client .app-footer {
-  display: none;
-}
-
 button,
 input,
 select,
@@ -153,11 +149,56 @@ code {
 
 .app-footer {
   flex-shrink: 0;
-  padding: 14px 18px 18px;
+  padding: 18px;
   color: var(--muted);
   font-size: 0.86rem;
-  font-weight: 800;
   text-align: center;
+}
+
+.app-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 16px;
+}
+
+.app-footer a {
+  color: #334155;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.app-footer p {
+  margin: 10px 0 0;
+  font-weight: 700;
+}
+
+.app-shell-client .app-footer {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 20;
+  max-width: min(520px, calc(100% - 24px));
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.62);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(8px);
+  text-align: left;
+}
+
+.app-shell-client .app-footer nav {
+  justify-content: flex-start;
+  gap: 8px 12px;
+}
+
+.app-shell-client .app-footer p {
+  display: none;
 }
 
 .primary-button,
@@ -287,6 +328,34 @@ code {
   min-width: 210px;
 }
 
+.legal-disclaimer {
+  max-width: 760px;
+  margin-top: 22px;
+  padding: 16px 18px;
+  border: 1px solid #9bbbd6;
+  border-radius: 10px;
+  background: #f2f7fb;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.legal-disclaimer strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #111827;
+}
+
+.legal-disclaimer ul,
+.legal-panel ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.legal-disclaimer li + li,
+.legal-panel li + li {
+  margin-top: 7px;
+}
+
 .hero-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -357,6 +426,35 @@ code {
   display: flex;
   justify-content: flex-end;
   margin-bottom: 18px;
+}
+
+.legal-page {
+  display: grid;
+  place-items: start center;
+  padding: 32px;
+}
+
+.legal-panel {
+  width: min(840px, 100%);
+  padding: clamp(24px, 5vw, 52px);
+}
+
+.legal-panel h1 {
+  margin: 0 0 14px;
+  font-size: clamp(2rem, 6vw, 3.8rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.legal-panel p {
+  color: #334155;
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.legal-panel li {
+  color: #334155;
+  line-height: 1.55;
 }
 
 .therapist-page {

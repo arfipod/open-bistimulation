@@ -6,8 +6,9 @@ function locationFrom(path: string): Location {
 }
 
 describe('url helpers', () => {
-  it('parses landing, not-found, therapist, client, and tactile routes', () => {
+  it('parses landing, legal, not-found, therapist, client, and tactile routes', () => {
     expect(parseCurrentRoute(locationFrom('/'))).toEqual({ page: 'landing' });
+    expect(parseCurrentRoute(locationFrom('/privacy'))).toEqual({ page: 'privacy' });
     expect(parseCurrentRoute(locationFrom('/unknown?t=token'))).toEqual({ page: 'not-found' });
     expect(parseCurrentRoute(locationFrom('/session/abc/therapist?t=therapist%20token'))).toEqual({
       page: 'therapist',

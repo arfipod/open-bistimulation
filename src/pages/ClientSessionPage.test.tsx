@@ -64,7 +64,7 @@ describe('ClientSessionPage', () => {
   it('shows an error when the client token is missing', () => {
     renderWithI18n(<ClientSessionPage sessionId="session-id" />);
 
-    expect(screen.getByText('Missing client token in the URL.')).toBeInTheDocument();
+    expect(screen.getByText('Missing participant token in the URL.')).toBeInTheDocument();
   });
 
   it('loads the session, announces client readiness, and handles state updates', async () => {
@@ -101,12 +101,12 @@ describe('ClientSessionPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Tactile QR' }));
 
-    expect(screen.getByText('Pair tactile phones')).toBeInTheDocument();
+    expect(screen.getByText('Pair tactile devices')).toBeInTheDocument();
     expect(screen.getByText(`${window.location.origin}/session/session-id/tactile/left?t=client%20token`)).toBeInTheDocument();
     expect(screen.getByText(`${window.location.origin}/session/session-id/tactile/right?t=client%20token`)).toBeInTheDocument();
   });
 
-  it('shows the ended-session view when the therapist broadcasts the end', async () => {
+  it('shows the ended-session view when the controller broadcasts the end', async () => {
     mocks.getBlsSession.mockResolvedValue({ state: makeState() });
 
     renderWithI18n(<ClientSessionPage sessionId="session-id" token="client-token" />);
@@ -117,7 +117,7 @@ describe('ClientSessionPage', () => {
     });
 
     expect(screen.getByText('Session ended')).toBeInTheDocument();
-    expect(screen.getByText('The therapist has ended this session.')).toBeInTheDocument();
+    expect(screen.getByText('The controller has ended this session.')).toBeInTheDocument();
   });
 
   it('surfaces session loading errors', async () => {

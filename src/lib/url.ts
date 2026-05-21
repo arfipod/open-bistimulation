@@ -8,6 +8,10 @@ export function parseCurrentRoute(location: Location = window.location): RouteIn
     return { page: 'landing' };
   }
 
+  if (parts.length === 1 && (parts[0] === 'legal' || parts[0] === 'privacy' || parts[0] === 'terms' || parts[0] === 'disclaimer')) {
+    return { page: parts[0] };
+  }
+
   if (parts[0] !== 'session' || !parts[1]) {
     return { page: 'not-found' };
   }

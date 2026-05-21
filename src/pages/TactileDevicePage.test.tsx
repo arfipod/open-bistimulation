@@ -54,7 +54,7 @@ describe('TactileDevicePage', () => {
   it('shows an error when the client token is missing', () => {
     renderWithI18n(<TactileDevicePage sessionId="session-id" side="left" />);
 
-    expect(screen.getByText('Missing client token in the URL.')).toBeInTheDocument();
+    expect(screen.getByText('Missing participant token in the URL.')).toBeInTheDocument();
   });
 
   it('loads, registers, announces, enables vibration, and counts matching pulses', async () => {
@@ -62,13 +62,13 @@ describe('TactileDevicePage', () => {
 
     renderWithI18n(<TactileDevicePage sessionId="session-id" token="client-token" side="left" />);
 
-    expect(await screen.findByRole('heading', { name: 'Left phone' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Left device' })).toBeInTheDocument();
     expect(mocks.upsertTactileDevice).toHaveBeenCalledWith(
       'session-id',
       'client-token',
       'left',
       '00000000-0000-4000-8000-000000000000',
-      'Left phone',
+      'Left device',
       true,
     );
     await waitFor(() =>
@@ -76,7 +76,7 @@ describe('TactileDevicePage', () => {
         kind: 'TACTILE_DEVICE_READY',
         side: 'left',
         deviceId: '00000000-0000-4000-8000-000000000000',
-        label: 'Left phone',
+        label: 'Left device',
         emittedAtMs: expect.any(Number),
         supported: true,
       }),
@@ -106,7 +106,7 @@ describe('TactileDevicePage', () => {
 
     renderWithI18n(<TactileDevicePage sessionId="session-id" token="client-token" side="right" />);
 
-    expect(await screen.findByRole('heading', { name: 'Right phone' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Right device' })).toBeInTheDocument();
     expect(screen.getByText(/does not support the Vibration API/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Enable vibration' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Test vibration' })).toBeDisabled();
@@ -126,7 +126,7 @@ describe('TactileDevicePage', () => {
 
     renderWithI18n(<TactileDevicePage sessionId="session-id" token="client-token" side="left" />);
 
-    expect(await screen.findByRole('heading', { name: 'Left phone' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Left device' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Enable vibration' }));
 
     expect(screen.getByText(/The browser rejected vibration/)).toBeInTheDocument();
@@ -134,7 +134,7 @@ describe('TactileDevicePage', () => {
 
   it('shows ended-session and loading-error views', async () => {
     const { unmount } = renderWithI18n(<TactileDevicePage sessionId="session-id" token="client-token" side="left" />);
-    expect(await screen.findByRole('heading', { name: 'Left phone' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Left device' })).toBeInTheDocument();
 
     act(() => {
       mocks.onMessage?.({ kind: 'SESSION_ENDED', emittedAtMs: 1 });

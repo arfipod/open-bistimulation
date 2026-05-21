@@ -253,8 +253,27 @@ begin
 end;
 $$;
 
+create or replace function public.cleanup_expired_bls_sessions()
+returns integer
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_deleted integer;
+begin
+  delete from public.sessions s
+  where s.expires_at is not null
+    and s.expires_at <= now();
+
+  get diagnostics v_deleted = row_count;
+  return v_deleted;
+end;
+$$;
+
 revoke all on public.sessions from anon, authenticated;
 revoke all on public.tactile_devices from anon, authenticated;
+revoke all on function public.cleanup_expired_bls_sessions() from public, anon, authenticated;
 
 grant execute on function public.get_server_time_ms() to anon, authenticated;
 grant execute on function public.create_bls_session(jsonb, jsonb, integer) to anon, authenticated;
