@@ -4,4 +4,4 @@ Run [../supabase/schema.sql](../supabase/schema.sql) in the Supabase SQL editor,
 
 Supabase stores session rows only: ids, controller/participant tokens, session state, preferences, and timestamps. Joy-Con detection, local bridge status, battery details, and rumble commands stay on the controller computer and are not stored in Supabase.
 
-The schema includes cleanup drops for the removed mobile tactile-device registration flow: `public.upsert_tactile_device` and `public.tactile_devices` are removed if they exist.
+The schema includes cleanup drops for the removed browser-device registration flow. Legacy tactile-device persistence objects are removed if they exist.

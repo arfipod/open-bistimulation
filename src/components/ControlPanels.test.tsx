@@ -106,7 +106,8 @@ describe('TactilePanel', () => {
       />,
     );
 
-    expect(screen.getByText('Joy-Con output requires the local Joy-Con bridge running on this computer.')).toBeInTheDocument();
+    expect(screen.getByText('Connect both Joy-Cons over Bluetooth, then run npm run joycon:bridge on this computer.')).toBeInTheDocument();
+    expect(screen.getByText('Local Joy-Con bridge')).toBeInTheDocument();
     expect(screen.getByText('Bridge connected')).toBeInTheDocument();
     expect(screen.getByText('Left Joy-Con')).toBeInTheDocument();
     expect(screen.getByText('Right Joy-Con')).toBeInTheDocument();

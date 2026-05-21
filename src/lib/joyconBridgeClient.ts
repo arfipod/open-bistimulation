@@ -142,7 +142,9 @@ async function requestBridgeJson<T>(baseUrl: string, path: string, options: Requ
       throw new JoyConBridgeClientError('Joy-Con bridge request timed out.');
     }
 
-    throw new JoyConBridgeClientError(error instanceof Error ? error.message : 'Could not reach the Joy-Con bridge.');
+    throw new JoyConBridgeClientError(
+      'Could not reach the Joy-Con bridge. Connect both Joy-Cons over Bluetooth, then run npm run joycon:bridge on this computer.',
+    );
   } finally {
     globalThis.clearTimeout(timeoutId);
   }

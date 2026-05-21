@@ -9,10 +9,12 @@ Open Bistimulation is not affiliated with, endorsed by, sponsored by, or connect
 ## Features
 
 - Controller page for cue settings, timing, session status, and participant invitation links.
-- Participant page for visual and audio cues.
-- Optional tactile settings can be paired with a local Joy-Con bridge.
+- Participant page for visual and audio cues that work directly in the browser.
+- Optional tactile settings can be paired with a local Joy-Con bridge on the therapist/operator computer.
 - English and Spanish UI copy.
 - Supabase RPC and Realtime backend with RLS denying direct anon table access.
+
+The app is hosted normally on Vercel as a browser frontend. Visual and audio cues run in the browser. Joy-Con tactile output is different: it requires a local Node bridge running on the therapist/operator computer. That bridge uses `node-hid` to talk to official Nintendo Joy-Con controllers over Bluetooth, and it is not deployed to Vercel.
 
 ## Local Setup
 
@@ -41,7 +43,7 @@ The Vercel/Supabase aliases `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE
 
 ## Local Joy-Con Bridge
 
-Joy-Con HID access is native/local, so the hosted browser app talks to a companion Node bridge instead of importing `node-hid` in frontend code. Joy-Con detection and rumble commands stay on the controller computer; tactile pulses are sent directly from the controller browser to that local bridge. Supabase does not register tactile devices or store Joy-Con device metadata, and Supabase Realtime is not used for hardware output. See [docs/joycon-bridge.md](docs/joycon-bridge.md) for pairing, `npm run joycon:bridge`, CLI pulse commands, CORS settings, and troubleshooting.
+Joy-Con HID access is native/local, so the hosted Vercel app talks to a companion Node bridge instead of importing `node-hid` in frontend code. Joy-Con detection and rumble commands stay on the controller computer; tactile pulses are sent directly from the controller browser to that local bridge. Supabase does not register tactile devices or store Joy-Con device metadata, and Supabase Realtime is not used for hardware output. See [docs/joycon-bridge.md](docs/joycon-bridge.md) for pairing, `npm run joycon:bridge`, CLI pulse commands, CORS settings, app setup, and troubleshooting.
 
 ## Supabase Setup
 
@@ -56,7 +58,7 @@ The schema creates:
 - RPC functions for creating sessions, loading sessions, saving controller state/preferences, ending sessions, and reading server time.
 - RLS policies that deny direct table access from anon/authenticated roles. The app uses `SECURITY DEFINER` RPC functions instead.
 
-For compatibility with older installs, the schema also drops the obsolete `public.tactile_devices` table and `public.upsert_tactile_device` RPC if they exist. Those objects belonged to the removed mobile tactile-device registration flow.
+For compatibility with older installs, the schema also drops obsolete tactile-device persistence objects if they exist. Those objects belonged to the removed browser-device registration flow.
 
 ## Data And Retention
 
