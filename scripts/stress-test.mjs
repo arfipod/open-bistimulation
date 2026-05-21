@@ -5,7 +5,7 @@ import { performance } from 'node:perf_hooks';
 import { createClient } from '@supabase/supabase-js';
 
 const DEFAULT_LOCAL_URL = 'http://127.0.0.1:5173/';
-const DEFAULT_VERCEL_URL = 'https://open-binstimulation.vercel.app/';
+const DEFAULT_VERCEL_URL = 'https://open-bistimulation.vercel.app/';
 
 const DEFAULT_STATE = {
   version: 1,
@@ -199,7 +199,7 @@ async function fetchWithTimeout(url, timeoutMs = 15_000) {
       signal: controller.signal,
       headers: {
         'cache-control': 'no-cache',
-        'user-agent': 'open-binstimulation-stress-test/1.0',
+        'user-agent': 'open-bistimulation-stress-test/1.0',
       },
     });
     const body = await response.arrayBuffer();
@@ -221,7 +221,7 @@ async function fetchText(url, timeoutMs = 15_000) {
   try {
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: { 'user-agent': 'open-binstimulation-stress-test/1.0' },
+      headers: { 'user-agent': 'open-bistimulation-stress-test/1.0' },
     });
 
     if (!response.ok) {
@@ -383,7 +383,7 @@ function makeSupabaseClient(config, label) {
     },
     global: {
       headers: {
-        'x-client-info': `open-binstimulation-stress/${label}`,
+        'x-client-info': `open-bistimulation-stress/${label}`,
       },
     },
     realtime: {

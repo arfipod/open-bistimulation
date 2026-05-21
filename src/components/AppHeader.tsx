@@ -10,13 +10,13 @@ interface AppHeaderProps {
   actions?: ReactNode;
 }
 
-export function AppHeader({ title = 'open-binstimulation', connectionLabel, connected, actions }: AppHeaderProps) {
+export function AppHeader({ title = 'open-bistimulation', connectionLabel, connected, actions }: AppHeaderProps) {
   const { t } = useI18n();
 
   return (
     <header className="app-header">
       <a className="brand" href="/" aria-label={t('app.brandAria')}>
-        <span>open</span>-binstimulation
+        <span>open</span>-bistimulation
       </a>
       {title ? <strong className="header-title">{title}</strong> : null}
       <div className="header-spacer" />

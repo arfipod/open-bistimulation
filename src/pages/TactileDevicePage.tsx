@@ -27,7 +27,7 @@ export function TactileDevicePage({ sessionId, token, side }: TactileDevicePageP
   const clock = useServerClock();
   const { t } = useI18n();
 
-  const deviceId = useMemo(() => getOrCreateLocalId(`open-binstimulation.tactile.${sessionId}.${side}`), [sessionId, side]);
+  const deviceId = useMemo(() => getOrCreateLocalId(`open-bistimulation.tactile.${sessionId}.${side}`), [sessionId, side]);
   const supported = typeof navigator !== 'undefined' && 'vibrate' in navigator;
   const label = side === 'left' ? t('common.leftPhone') : t('common.rightPhone');
 

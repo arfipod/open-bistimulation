@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 export type Language = 'en' | 'es';
 
-const LANGUAGE_STORAGE_KEY = 'open-binstimulation.language.v1';
+const LANGUAGE_STORAGE_KEY = 'open-bistimulation.language.v1';
 
 const translations = {
   en: {

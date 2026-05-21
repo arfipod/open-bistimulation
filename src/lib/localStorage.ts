@@ -1,7 +1,7 @@
 import { DEFAULT_PREFERENCES } from '../domain/defaults';
 import type { SessionPreferences } from '../domain/sessionTypes';
 
-const PREFERENCES_KEY = 'open-binstimulation.preferences.v1';
+const PREFERENCES_KEY = 'open-bistimulation.preferences.v1';
 
 export function loadLocalPreferences(): SessionPreferences {
   const raw = localStorage.getItem(PREFERENCES_KEY);

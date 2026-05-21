@@ -5,7 +5,7 @@ Local run: 2026-05-21T00:52:47+02:00.
 ## Executive Summary
 
 - The app deployed on Vercel is a static Vite frontend. There are no custom serverless functions on Vercel; the functional bottleneck is Supabase RPC and Supabase Realtime.
-- Local `http://127.0.0.1:5173/` and Vercel `https://open-binstimulation.vercel.app/` point to the same Supabase project: `ilnybknoyafzejsftizy.supabase.co`, with the same public key fingerprint.
+- Local `http://127.0.0.1:5173/` and Vercel `https://open-bistimulation.vercel.app/` point to the same Supabase project: `ilnybknoyafzejsftizy.supabase.co`, with the same public key fingerprint.
 - The current product model is `1 therapist : 1 patient` per BLS session. The schema generates one `therapist_token` and one `client_token`; multiple clients can open the same link, but the app does not distinguish them as unique patients.
 - The observed test passed without errors up to:
   - 50 lightweight sessions, without tactile mobile devices: 100 Realtime connections.
@@ -19,7 +19,7 @@ Added `scripts/stress-test.mjs` and the npm script:
 
 ```bash
 npm run stress -- http --base-url http://127.0.0.1:5173/ --requests 200 --concurrency 20
-npm run stress -- realtime --base-url https://open-binstimulation.vercel.app/ --sessions 25 --clients 1 --tactile 2 --duration-ms 15000 --pulse-hz 0.58
+npm run stress -- realtime --base-url https://open-bistimulation.vercel.app/ --sessions 25 --clients 1 --tactile 2 --duration-ms 15000 --pulse-hz 0.58
 npm run stress -- matrix --base-url http://127.0.0.1:5173/ --sessions 10,25,40 --clients 1 --tactile 0
 ```
 
