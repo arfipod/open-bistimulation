@@ -1,6 +1,6 @@
 # Open Bistimulation
 
-Open Bistimulation is an independent MVP for browser-based bilateral sensory cues. BLS in this project means configurable left/right visual, auditory, and optional tactile browser cues coordinated by a controller for a participant.
+Open Bistimulation is an independent MVP for browser-based bilateral sensory cues. BLS in this project means configurable left/right visual, auditory, and optional local Joy-Con tactile cues coordinated by a controller for a participant.
 
 This project is experimental software. It is not medical advice, not a medical device, not for diagnostic or therapeutic decisions, and not for emergencies. Qualified professionals and operators remain responsible for deciding whether and how to use it in their own context.
 
@@ -41,7 +41,7 @@ The Vercel/Supabase aliases `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE
 
 ## Local Joy-Con Bridge
 
-Joy-Con HID access is native/local, so the hosted browser app talks to a companion Node bridge instead of importing `node-hid` in frontend code. Tactile pulses are sent directly from the controller browser to that local bridge; Supabase Realtime is not used for hardware output. See [docs/joycon-bridge.md](docs/joycon-bridge.md) for pairing, `npm run joycon:bridge`, CLI pulse commands, CORS settings, and troubleshooting.
+Joy-Con HID access is native/local, so the hosted browser app talks to a companion Node bridge instead of importing `node-hid` in frontend code. Joy-Con detection and rumble commands stay on the controller computer; tactile pulses are sent directly from the controller browser to that local bridge. Supabase does not register tactile devices or store Joy-Con device metadata, and Supabase Realtime is not used for hardware output. See [docs/joycon-bridge.md](docs/joycon-bridge.md) for pairing, `npm run joycon:bridge`, CLI pulse commands, CORS settings, and troubleshooting.
 
 ## Supabase Setup
 
@@ -56,6 +56,8 @@ The schema creates:
 - RPC functions for creating sessions, loading sessions, saving controller state/preferences, ending sessions, and reading server time.
 - RLS policies that deny direct table access from anon/authenticated roles. The app uses `SECURITY DEFINER` RPC functions instead.
 
+For compatibility with older installs, the schema also drops the obsolete `public.tactile_devices` table and `public.upsert_tactile_device` RPC if they exist. Those objects belonged to the removed mobile tactile-device registration flow.
+
 ## Data And Retention
 
 Supabase stores the minimum operational data needed for the MVP:
@@ -65,6 +67,8 @@ Supabase stores the minimum operational data needed for the MVP:
 - Session state
 - Preferences
 - Timestamps such as creation, update, expiry, and end time
+
+Tactile preferences may include whether tactile output is enabled plus pulse timing values. Joy-Con detection, battery details, local bridge status, and rumble commands are local-only and are not stored in Supabase.
 
 The app does not intentionally store participant names, professional notes, diagnostic labels, symptoms, care plans, or transcripts. Avoid placing sensitive identifying information into URLs, browser tools, issue reports, logs, or deployment settings.
 

@@ -110,13 +110,13 @@ export function TactilePanel({
           <strong>{t('tactile.joyConBridge')}</strong>
           <ConnectionBadge connected={bridgeOnline} label={bridgeOnline ? t('tactile.bridgeConnected') : t('tactile.bridgeOffline')} />
         </div>
-        <div className="tactile-device-grid">
-          <DeviceStatus
+        <div className="joycon-device-grid">
+          <JoyConStatusRow
             label={t('tactile.leftJoyCon')}
             connected={leftConnected}
             battery={batteryText(leftDevice, t('tactile.batteryUnknown'))}
           />
-          <DeviceStatus
+          <JoyConStatusRow
             label={t('tactile.rightJoyCon')}
             connected={rightConnected}
             battery={batteryText(rightDevice, t('tactile.batteryUnknown'))}
@@ -220,11 +220,11 @@ function formatLastPulse(outputStatus: JoyConTactileOutputStatus, t: ReturnType<
   return t('tactile.lastPulseValue', { side, at });
 }
 
-function DeviceStatus({ label, connected, battery }: { label: string; connected: boolean; battery: string }) {
+function JoyConStatusRow({ label, connected, battery }: { label: string; connected: boolean; battery: string }) {
   const { t } = useI18n();
 
   return (
-    <div className={`tactile-device-row ${connected ? 'is-connected' : 'is-disconnected'}`}>
+    <div className={`joycon-device-row ${connected ? 'is-connected' : 'is-disconnected'}`}>
       <strong>{label}</strong>
       <span>{connected ? t('common.connected') : t('tactile.notDetected')}</span>
       <small>{battery}</small>

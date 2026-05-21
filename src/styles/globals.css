@@ -779,23 +779,23 @@ input[type='range'] {
   min-width: 0;
 }
 
-.tactile-device-grid {
+.joycon-device-grid {
   display: grid;
   gap: 8px;
 }
 
-.tactile-device-row {
+.joycon-device-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 3px 10px;
   align-items: center;
 }
 
-.tactile-device-row strong {
+.joycon-device-row strong {
   min-width: 0;
 }
 
-.tactile-device-row span {
+.joycon-device-row span {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -804,7 +804,7 @@ input[type='range'] {
   font-weight: 900;
 }
 
-.tactile-device-row span::before {
+.joycon-device-row span::before {
   content: '';
   width: 8px;
   height: 8px;
@@ -812,15 +812,15 @@ input[type='range'] {
   background: #ef4444;
 }
 
-.tactile-device-row.is-connected span {
+.joycon-device-row.is-connected span {
   color: #365a7c;
 }
 
-.tactile-device-row.is-connected span::before {
+.joycon-device-row.is-connected span::before {
   background: #46739d;
 }
 
-.tactile-device-row small {
+.joycon-device-row small {
   grid-column: 1 / -1;
   color: var(--muted);
   font-weight: 800;

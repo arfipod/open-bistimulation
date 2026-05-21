@@ -179,7 +179,7 @@ const translations = {
     'legal.privacy.item1':
       'Supabase stores session id, controller and participant tokens, session state, preferences, and timestamps.',
     'legal.privacy.item2':
-      'Tactile preferences may include whether tactile output is enabled, pulse duration, and gap duration.',
+      'Tactile preferences may include whether tactile output is enabled, pulse duration, and gap duration; Joy-Con detection and rumble details stay local.',
     'legal.privacy.item3':
       'The app does not intentionally store participant names, professional notes, diagnostic labels, symptoms, care plans, or transcripts.',
     'legal.privacy.item4':
@@ -375,7 +375,7 @@ const translations = {
     'legal.privacy.item1':
       'Supabase almacena id de sesión, tokens de controlador y participante, estado de sesión, preferencias y marcas de tiempo.',
     'legal.privacy.item2':
-      'Las preferencias táctiles pueden incluir si la salida táctil está activada, la duración del pulso y la duración de la pausa.',
+      'Las preferencias táctiles pueden incluir si la salida táctil está activada, la duración del pulso y la duración de la pausa; la detección Joy-Con y los detalles de rumble permanecen locales.',
     'legal.privacy.item3':
       'La app no almacena intencionalmente nombres de participantes, notas profesionales, etiquetas diagnósticas, síntomas, planes de atención ni transcripciones.',
     'legal.privacy.item4':
