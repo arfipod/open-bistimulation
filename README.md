@@ -10,7 +10,7 @@ Open Bistimulation is not affiliated with, endorsed by, sponsored by, or connect
 
 - Controller page for cue settings, timing, session status, and participant invitation links.
 - Participant page for visual and audio cues.
-- Optional tactile settings are retained for a later local Joy-Con bridge integration.
+- Optional tactile settings can be paired with a local Joy-Con bridge.
 - English and Spanish UI copy.
 - Supabase RPC and Realtime backend with RLS denying direct anon table access.
 
@@ -38,6 +38,10 @@ SUPABASE_ANON_KEY=...
 ```
 
 The Vercel/Supabase aliases `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are also supported by the app runtime.
+
+## Local Joy-Con Bridge
+
+Joy-Con HID access is native/local, so the hosted browser app talks to a companion Node bridge instead of importing `node-hid` in frontend code. See [docs/joycon-bridge.md](docs/joycon-bridge.md) for pairing, `npm run joycon:bridge`, CLI pulse commands, CORS settings, and troubleshooting.
 
 ## Supabase Setup
 

@@ -14,6 +14,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "joycon:bridge": "node scripts/joycon-bridge.mjs",
+    "joycon:list": "node scripts/joycon-rumble.mjs list",
+    "joycon:left": "node scripts/joycon-rumble.mjs pulse --side left --intensity high --duration 900 --repeats 2",
+    "joycon:right": "node scripts/joycon-rumble.mjs pulse --side right --intensity high --duration 900 --repeats 2",
+    "joycon:both": "node scripts/joycon-rumble.mjs pulse --side both --intensity high --duration 700 --repeats 1",
+    "joycon:neutral": "node scripts/joycon-rumble.mjs neutral --side both",
     "stress": "node scripts/stress-test.mjs",
     "legal:check": "node scripts/legal-check.mjs",
     "test": "vitest run",
@@ -24,6 +30,9 @@
     "@supabase/supabase-js": "^2.49.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
+  },
+  "optionalDependencies": {
+    "node-hid": "^3.3.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
