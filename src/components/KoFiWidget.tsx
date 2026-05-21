@@ -7,7 +7,13 @@ export function KoFiWidget() {
   const { t } = useI18n();
 
   return (
-    <a className="support-button" href={KOFI_URL} target="_blank" rel="noreferrer">
+    <a
+      className="support-button"
+      href={KOFI_URL}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={t('support.ariaLabel')}
+    >
       {t('support.button')}
     </a>
   );

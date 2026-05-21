@@ -20,7 +20,8 @@ const translations = {
     'footer.github': 'GitHub',
     'footer.support': 'Support development',
     'footer.credit': 'Made with 💙 by arrf',
-    'support.button': 'Support',
+    'support.button': 'Leave a tip',
+    'support.ariaLabel': 'Leave an optional tip to support independent development',
     'common.backHome': 'Back home',
     'common.copy': 'Copy',
     'common.copied': 'Copied',
@@ -42,6 +43,9 @@ const translations = {
     'landing.eyebrow': 'Independent experimental BLS tool',
     'landing.description':
       'BLS here means browser-based bilateral sensory cues: visual, auditory, and optional tactile pulses coordinated by a controller for a participant.',
+    'landing.publicContentTitle': 'What this tool provides',
+    'landing.publicContentBody':
+      'Open Bistimulation is free independent software for browser-based bilateral sensory cues. It provides configurable visual, auditory, and optional tactile cues coordinated by a controller for a participant. Optional tips support independent development and maintenance only; they do not purchase access, professional services, medical services, warranties, or outcome guarantees.',
     'landing.supabaseWarning':
       'Supabase environment variables are missing. Copy .env.example to .env.local and fill in SUPABASE_URL and SUPABASE_ANON_KEY.',
     'landing.create': 'Create BLS session',
@@ -188,7 +192,7 @@ const translations = {
     'legal.terms.item1':
       'Qualified professionals and operators are responsible for deciding whether, when, and how the tool is appropriate in their own context.',
     'legal.terms.item2': 'Do not use it for emergencies, crisis response, or situations needing immediate help.',
-    'legal.terms.item3': 'Donations support development only; they do not buy professional services, warranties, or outcome guarantees.',
+    'legal.terms.item3': 'Optional tips support independent development only; they do not buy access, professional services, medical services, warranties, or outcome guarantees.',
     'legal.terms.item4': 'Use the software only where you can comply with applicable law and professional obligations.',
     'legal.disclaimer.title': 'Disclaimer',
     'legal.disclaimer.intro':
@@ -214,7 +218,8 @@ const translations = {
     'footer.github': 'GitHub',
     'footer.support': 'Apoyar desarrollo',
     'footer.credit': 'Hecho con 💙 por arrf',
-    'support.button': 'Apoyar',
+    'support.button': 'Dejar propina',
+    'support.ariaLabel': 'Dejar una propina opcional para apoyar el desarrollo independiente',
     'common.backHome': 'Volver al inicio',
     'common.copy': 'Copiar',
     'common.copied': 'Copiado',
@@ -236,6 +241,9 @@ const translations = {
     'landing.eyebrow': 'Herramienta BLS experimental independiente',
     'landing.description':
       'Aqui BLS significa senales sensoriales bilaterales en el navegador: visuales, auditivas y pulsos tactiles opcionales coordinados por un controlador para un participante.',
+    'landing.publicContentTitle': 'Que proporciona esta herramienta',
+    'landing.publicContentBody':
+      'Open Bistimulation es software libre e independiente para senales sensoriales bilaterales en el navegador. Proporciona senales visuales, auditivas y pulsos tactiles opcionales configurables, coordinados por un controlador para un participante. Las propinas opcionales solo apoyan el desarrollo y mantenimiento independiente; no compran acceso, servicios profesionales, servicios medicos, garantias ni promesas de resultados.',
     'landing.supabaseWarning':
       'Faltan las variables de entorno de Supabase. Copia .env.example a .env.local y completa SUPABASE_URL y SUPABASE_ANON_KEY.',
     'landing.create': 'Crear sesion BLS',
@@ -383,7 +391,7 @@ const translations = {
       'Los profesionales cualificados y operadores son responsables de decidir si, cuando y como la herramienta es adecuada en su propio contexto.',
     'legal.terms.item2': 'No la uses para emergencias, respuesta a crisis o situaciones que necesiten ayuda inmediata.',
     'legal.terms.item3':
-      'Las donaciones solo apoyan el desarrollo; no compran servicios profesionales, garantias ni promesas de resultados.',
+      'Las propinas opcionales solo apoyan el desarrollo independiente; no compran acceso, servicios profesionales, servicios medicos, garantias ni promesas de resultados.',
     'legal.terms.item4': 'Usa el software solo donde puedas cumplir la ley aplicable y tus obligaciones profesionales.',
     'legal.disclaimer.title': 'Aviso',
     'legal.disclaimer.intro':

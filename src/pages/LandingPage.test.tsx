@@ -34,6 +34,15 @@ describe('LandingPage', () => {
     expect(screen.getByRole('button', { name: 'Create BLS session' })).toBeDisabled();
   });
 
+
+  it('renders visible public product and payment clarification content', () => {
+    renderWithI18n(<LandingPage />);
+
+    expect(screen.getByRole('heading', { name: 'What this tool provides' })).toBeInTheDocument();
+    expect(screen.getByText(/Open Bistimulation is free independent software for browser-based bilateral sensory cues/)).toBeInTheDocument();
+    expect(screen.getByText(/Optional tips support independent development and maintenance only/)).toBeInTheDocument();
+  });
+
   it('creates sessions from local/default preferences and shows backend errors', async () => {
     mocks.createBlsSession.mockRejectedValue(new Error('backend offline'));
 

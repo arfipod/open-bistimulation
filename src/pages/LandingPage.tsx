@@ -54,6 +54,12 @@ export function LandingPage() {
             {isCreating ? t('landing.creating') : t('landing.create')}
           </button>
 
+
+          <section className="panel" aria-labelledby="landing-public-content-title">
+            <h2 id="landing-public-content-title">{t('landing.publicContentTitle')}</h2>
+            <p>{t('landing.publicContentBody')}</p>
+          </section>
+
           <aside className="legal-disclaimer" aria-labelledby="landing-legal-title">
             <strong id="landing-legal-title">{t('landing.disclaimerTitle')}</strong>
             <ul>
