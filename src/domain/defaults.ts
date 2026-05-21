@@ -38,5 +38,5 @@ export const DEFAULT_PREFERENCES: SessionPreferences = {
   tactile: DEFAULT_SESSION_STATE.tactile,
 };
 
-export const VISUAL_COLORS = ['#0500a8', '#008000', '#ffcc00', '#b83b3f', '#111827', '#ffffff'];
+export const VISUAL_COLORS = ['#0500a8', '#46739D', '#ffcc00', '#b83b3f', '#111827', '#ffffff'];
 export const BACKGROUND_COLORS = ['#c9ced1', '#6b7280', '#ffffff', '#fbe8ea', '#111827'];

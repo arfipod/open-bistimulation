@@ -4,9 +4,9 @@
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #111827;
   background: #eef2f3;
-  --primary: #0f766e;
-  --primary-dark: #115e59;
-  --primary-soft: #ccfbf1;
+  --primary: #46739d;
+  --primary-dark: #365a7c;
+  --primary-soft: #dceaf6;
   --danger: #b91c1c;
   --danger-soft: #fee2e2;
   --muted: #64748b;
@@ -185,7 +185,7 @@ code {
 .primary-button {
   color: white;
   background: var(--primary);
-  box-shadow: 0 8px 20px rgba(15, 118, 110, 0.25);
+  box-shadow: 0 8px 20px rgba(70, 115, 157, 0.25);
 }
 
 .primary-button:hover {
@@ -311,9 +311,9 @@ code {
 }
 
 .success-box {
-  color: #065f46;
-  background: #d1fae5;
-  border: 1px solid #6ee7b7;
+  color: #365a7c;
+  background: #dceaf6;
+  border: 1px solid #9bbbd6;
 }
 
 .loading-panel,
@@ -420,7 +420,7 @@ code {
 }
 
 .switch input:checked + span {
-  background: #14b8a6;
+  background: #46739d;
 }
 
 .switch input:checked + span::before {
@@ -519,7 +519,7 @@ input[type='range'] {
   outline: 3px solid var(--primary);
   outline-offset: 2px;
   background: white;
-  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.22);
+  box-shadow: 0 8px 18px rgba(70, 115, 157, 0.22);
 }
 
 .direction-icon.horizontal {
@@ -583,7 +583,7 @@ input[type='range'] {
 }
 
 .connection-badge.is-connected .connection-dot {
-  background: #16a34a;
+  background: #46739d;
 }
 
 .connection-badge.is-disconnected .connection-dot {
@@ -768,7 +768,7 @@ input[type='range'] {
 }
 
 .client-status.ok {
-  background: #15803d;
+  background: #46739d;
 }
 
 .client-status.bad {
@@ -848,9 +848,9 @@ input[type='range'] {
 }
 
 .support-box.ok {
-  color: #065f46;
-  background: #d1fae5;
-  border: 1px solid #6ee7b7;
+  color: #365a7c;
+  background: #dceaf6;
+  border: 1px solid #9bbbd6;
 }
 
 .support-box.bad {

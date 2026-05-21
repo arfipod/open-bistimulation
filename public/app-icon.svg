@@ -3,8 +3,8 @@
   <desc id="desc">Bilateral stimulation symbol with alternating pulses around a centered point.</desc>
   <defs>
     <linearGradient id="bg" x1="18" x2="110" y1="16" y2="116" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0f766e" />
-      <stop offset="1" stop-color="#14b8a6" />
+      <stop stop-color="#46739D" />
+      <stop offset="1" stop-color="#6FA0C8" />
     </linearGradient>
     <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
       <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.18" />
@@ -17,12 +17,12 @@
       fill="#f8fafc"
       opacity="0.96"
     />
-    <circle cx="64" cy="64" r="14" fill="#0f766e" />
+    <circle cx="64" cy="64" r="14" fill="#46739D" />
     <circle cx="64" cy="64" r="6" fill="#f8fafc" />
     <path
       d="M41 52c-5 3-9 7-13 12 4 5 8 9 13 12M87 52c5 3 9 7 13 12-4 5-8 9-13 12"
       fill="none"
-      stroke="#99f6e4"
+      stroke="#BBD4EA"
       stroke-linecap="round"
       stroke-width="8"
     />
