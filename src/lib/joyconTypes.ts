@@ -6,6 +6,8 @@ export interface JoyConBatterySummary {
   level?: number | null;
   percent?: number | null;
   charging?: boolean | null;
+  rawPowerInfo?: string | null;
+  reportId?: string | null;
   error?: string;
 }
 

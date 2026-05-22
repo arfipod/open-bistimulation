@@ -795,7 +795,7 @@ input[type='range'] {
   min-width: 0;
 }
 
-.joycon-device-row span {
+.joycon-device-row > span {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -804,7 +804,7 @@ input[type='range'] {
   font-weight: 900;
 }
 
-.joycon-device-row span::before {
+.joycon-device-row > span::before {
   content: '';
   width: 8px;
   height: 8px;
@@ -812,11 +812,11 @@ input[type='range'] {
   background: #ef4444;
 }
 
-.joycon-device-row.is-connected span {
+.joycon-device-row.is-connected > span {
   color: #365a7c;
 }
 
-.joycon-device-row.is-connected span::before {
+.joycon-device-row.is-connected > span::before {
   background: #46739d;
 }
 
@@ -824,6 +824,62 @@ input[type='range'] {
   grid-column: 1 / -1;
   color: var(--muted);
   font-weight: 800;
+}
+
+.battery-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: max-content;
+}
+
+.battery-icon {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  width: 28px;
+  height: 14px;
+  padding: 2px 4px 2px 3px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  color: #16a34a;
+}
+
+.battery-icon::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: -5px;
+  width: 3px;
+  height: 6px;
+  border-radius: 0 2px 2px 0;
+  background: currentColor;
+}
+
+.battery-icon span {
+  border-radius: 1px;
+  background: transparent;
+}
+
+.battery-icon span.is-active {
+  background: currentColor;
+}
+
+.battery-status.is-full {
+  color: #15803d;
+}
+
+.battery-status.is-medium {
+  color: #b45309;
+}
+
+.battery-status.is-low {
+  color: #b91c1c;
+}
+
+.battery-status.is-unknown {
+  color: #64748b;
 }
 
 .tactile-output-grid {

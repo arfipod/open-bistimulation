@@ -1,6 +1,6 @@
 import type { TactileSettings } from '../domain/sessionTypes';
 import type { JoyConTactileOutputStatus } from '../hooks/useJoyConTactileOutput';
-import type { JoyConDeviceSummary, JoyConIntensity, JoyConSide } from '../lib/joyconTypes';
+import type { JoyConBatterySummary, JoyConDeviceSummary, JoyConIntensity, JoyConSide } from '../lib/joyconTypes';
 import { useI18n } from '../lib/i18n';
 import { ConnectionBadge } from './ConnectionBadge';
 
@@ -33,18 +33,52 @@ function findDevice(devices: JoyConDeviceSummary[], side: 'left' | 'right'): Joy
   return devices.find((device) => device.side === side);
 }
 
-function batteryText(device: JoyConDeviceSummary | undefined, batteryUnknown: string): string {
-  const battery = device?.battery;
+interface BatteryDisplay {
+  text: string;
+  activeBars: number;
+  tone: 'full' | 'medium' | 'low' | 'unknown';
+}
 
-  if (typeof battery?.percent === 'number') {
-    return `${battery.percent}%`;
+const BATTERY_BAR_COUNT = 4;
+
+function batteryDisplay(device: JoyConDeviceSummary | undefined, batteryUnknown: string): BatteryDisplay {
+  const battery = device?.battery;
+  const percent = typeof battery?.percent === 'number' ? battery.percent : typeof battery?.level === 'number' ? battery.level * 25 : null;
+  const normalizedPercent = percent === null ? null : Math.min(100, Math.max(0, percent));
+
+  if (normalizedPercent !== null) {
+    return {
+      text: `${normalizedPercent}%`,
+      activeBars: normalizedPercent === 0 ? 0 : Math.max(1, Math.ceil(normalizedPercent / 25)),
+      tone: normalizedPercent <= 25 ? 'low' : normalizedPercent <= 50 ? 'medium' : 'full',
+    };
   }
 
   if (battery?.label && battery.label !== 'Unknown') {
-    return battery.label;
+    return {
+      text: battery.label,
+      activeBars: batteryBarsFromLabel(battery),
+      tone: batteryToneFromLabel(battery),
+    };
   }
 
-  return batteryUnknown;
+  return { text: batteryUnknown, activeBars: 0, tone: 'unknown' };
+}
+
+function batteryBarsFromLabel(battery: JoyConBatterySummary): number {
+  const label = battery.label?.toLowerCase();
+  if (label === 'full') return 4;
+  if (label === 'medium') return 2;
+  if (label === 'low' || label === 'critical') return 1;
+  return 0;
+}
+
+function batteryToneFromLabel(battery: JoyConBatterySummary): BatteryDisplay['tone'] {
+  const label = battery.label?.toLowerCase();
+  if (label === 'empty' || label === 'critical' || label === 'low') return 'low';
+  if (label === 'medium') return 'medium';
+  if (label === 'full') return 'full';
+  return 'unknown';
 }
 
 export function TactilePanel({
@@ -106,12 +140,12 @@ export function TactilePanel({
           <JoyConStatusRow
             label={t('tactile.leftJoyCon')}
             connected={leftConnected}
-            battery={batteryText(leftDevice, t('tactile.batteryUnknown'))}
+            battery={batteryDisplay(leftDevice, t('tactile.batteryUnknown'))}
           />
           <JoyConStatusRow
             label={t('tactile.rightJoyCon')}
             connected={rightConnected}
-            battery={batteryText(rightDevice, t('tactile.batteryUnknown'))}
+            battery={batteryDisplay(rightDevice, t('tactile.batteryUnknown'))}
           />
         </div>
         <div className="tactile-output-grid">
@@ -231,14 +265,22 @@ function formatLastPulse(outputStatus: JoyConTactileOutputStatus, t: ReturnType<
   return t('tactile.lastPulseValue', { side, at });
 }
 
-function JoyConStatusRow({ label, connected, battery }: { label: string; connected: boolean; battery: string }) {
+function JoyConStatusRow({ label, connected, battery }: { label: string; connected: boolean; battery: BatteryDisplay }) {
   const { t } = useI18n();
+  const bars = Array.from({ length: BATTERY_BAR_COUNT }, (_, index) => index < battery.activeBars);
 
   return (
     <div className={`joycon-device-row ${connected ? 'is-connected' : 'is-disconnected'}`}>
       <strong>{label}</strong>
       <span>{connected ? t('common.connected') : t('tactile.notDetected')}</span>
-      <small>{battery}</small>
+      <small className={`battery-status is-${battery.tone}`} aria-label={battery.text}>
+        <span className="battery-icon" aria-hidden="true">
+          {bars.map((active, index) => (
+            <span key={index} className={active ? 'is-active' : ''} />
+          ))}
+        </span>
+        <span>{battery.text}</span>
+      </small>
     </div>
   );
 }

@@ -46,6 +46,12 @@ interface HIDDevice extends EventTarget {
   sendReport(reportId: number, data: BufferSource): Promise<void>;
 }
 
+interface HIDInputReportEvent extends Event {
+  readonly device: HIDDevice;
+  readonly reportId: number;
+  readonly data: DataView;
+}
+
 interface HIDConnectionEvent extends Event {
   readonly device: HIDDevice;
 }

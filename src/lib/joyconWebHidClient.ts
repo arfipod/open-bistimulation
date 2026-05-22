@@ -1,4 +1,12 @@
-import type { JoyConCommandResult, JoyConDeviceSummary, JoyConIntensity, JoyConSide, NeutralJoyConOptions, PulseJoyConOptions } from './joyconTypes';
+import type {
+  JoyConBatterySummary,
+  JoyConCommandResult,
+  JoyConDeviceSummary,
+  JoyConIntensity,
+  JoyConSide,
+  NeutralJoyConOptions,
+  PulseJoyConOptions,
+} from './joyconTypes';
 
 export type { JoyConCommandResult, JoyConDeviceSummary, JoyConIntensity, JoyConSide, NeutralJoyConOptions, PulseJoyConOptions } from './joyconTypes';
 
@@ -7,10 +15,12 @@ const JOYCON_LEFT_PRODUCT_ID = 0x2006;
 const JOYCON_RIGHT_PRODUCT_ID = 0x2007;
 const REPORT_DATA_BYTES = 48;
 const DEFAULT_FRAME_INTERVAL_MS = 24;
+const BATTERY_READ_TIMEOUT_MS = 900;
 const MIN_DURATION_MS = 20;
 const MAX_DURATION_MS = 5000;
 const MIN_REPEATS = 1;
 const MAX_REPEATS = 20;
+const BATTERY_LABELS = ['Empty', 'Critical', 'Low', 'Medium', 'Full'];
 
 const RUMBLE_PROFILES: Record<JoyConIntensity | 'neutral', number[]> = {
   neutral: [0x00, 0x01, 0x40, 0x40],
@@ -85,7 +95,7 @@ export function classifyJoyConDevice(device: Pick<HIDDevice, 'productId' | 'prod
   return 'unknown';
 }
 
-function summarizeDevice(device: HIDDevice, index: number): JoyConDeviceSummary {
+function summarizeDevice(device: HIDDevice, index: number, battery: JoyConBatterySummary | null = null): JoyConDeviceSummary {
   const primaryCollection = device.collections[0];
 
   return {
@@ -96,7 +106,7 @@ function summarizeDevice(device: HIDDevice, index: number): JoyConDeviceSummary 
     productId: toHex(device.productId) ?? undefined,
     usagePage: toHex(primaryCollection?.usagePage) ?? null,
     usage: toHex(primaryCollection?.usage) ?? null,
-    battery: null,
+    battery,
   };
 }
 
@@ -164,6 +174,86 @@ async function sendReport(device: HIDDevice, reportId: number, payload: number[]
 
   if (!quiet) {
     emit(events, 'write', { label, reportId: toHex(reportId, 2), writtenBytes: REPORT_DATA_BYTES + 1 });
+  }
+}
+
+function unknownBattery(error?: unknown): JoyConBatterySummary {
+  return {
+    label: 'Unknown',
+    level: null,
+    percent: null,
+    charging: null,
+    ...(error instanceof Error ? { error: error.message } : {}),
+  };
+}
+
+function parseBatteryReport(reportId: number, data: DataView): JoyConBatterySummary | null {
+  if (![0x21, 0x23, 0x30, 0x31, 0x32].includes(reportId) || data.byteLength < 2) return null;
+
+  const powerInfo = data.getUint8(1);
+  const level = (powerInfo >> 5) & 0x07;
+  const known = level >= 0 && level <= 4;
+
+  return {
+    rawPowerInfo: toHex(powerInfo, 2),
+    reportId: toHex(reportId, 2),
+    level: known ? level : null,
+    label: known ? BATTERY_LABELS[level] : 'Unknown',
+    percent: known ? level * 25 : null,
+    charging: (powerInfo & 0x10) !== 0,
+  };
+}
+
+function waitForBatteryReport(device: HIDDevice): Promise<JoyConBatterySummary | null> {
+  return new Promise((resolve) => {
+    let timeoutId: ReturnType<typeof globalThis.setTimeout> | undefined;
+
+    const cleanup = () => {
+      if (timeoutId !== undefined) {
+        globalThis.clearTimeout(timeoutId);
+      }
+      device.removeEventListener('inputreport', handleInputReport as EventListener);
+    };
+
+    const handleInputReport = (event: HIDInputReportEvent) => {
+      const battery = parseBatteryReport(event.reportId, event.data);
+      if (!battery) return;
+
+      cleanup();
+      resolve(battery);
+    };
+
+    timeoutId = globalThis.setTimeout(() => {
+      cleanup();
+      resolve(null);
+    }, BATTERY_READ_TIMEOUT_MS);
+
+    device.addEventListener('inputreport', handleInputReport as EventListener);
+  });
+}
+
+async function readBatterySnapshot(device: HIDDevice): Promise<JoyConBatterySummary> {
+  const wasOpened = device.opened;
+
+  try {
+    if (!device.opened) {
+      await device.open();
+    }
+
+    const report = waitForBatteryReport(device);
+    await sendReport(device, 0x01, buildSubcommandPayload(0x03, [0x30]), 'set input report mode', [], true);
+
+    return (await report) ?? unknownBattery();
+  } catch (error) {
+    return unknownBattery(error);
+  } finally {
+    if (!wasOpened && device.opened) {
+      try {
+        await device.close();
+      } catch {
+        // Closing can fail if the controller disconnects while reading battery.
+      }
+    }
   }
 }
 
@@ -250,7 +340,12 @@ export async function requestJoyConDevices(): Promise<JoyConDeviceSummary[]> {
 
 export async function listJoyConDevices(): Promise<JoyConDeviceSummary[]> {
   const devices = await getGrantedJoyConHidDevices();
-  return devices.map(summarizeDevice);
+  return Promise.all(
+    devices.map(async (device, index) => {
+      const battery = await readBatterySnapshot(device);
+      return summarizeDevice(device, index, battery);
+    }),
+  );
 }
 
 export async function pulseJoyCon(options: PulseJoyConOptions): Promise<JoyConCommandResult> {

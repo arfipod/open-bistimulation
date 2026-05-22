@@ -5,7 +5,8 @@ const NINTENDO_VENDOR_ID = 0x057e;
 const JOYCON_LEFT_PRODUCT_ID = 0x2006;
 const JOYCON_RIGHT_PRODUCT_ID = 0x2007;
 
-function makeHidDevice(productId: number, productName: string): HIDDevice {
+function makeHidDevice(productId: number, productName: string, batteryPowerInfo = 0x80): HIDDevice {
+  let inputReportListener: ((event: HIDInputReportEvent) => void) | null = null;
   const device = {
     opened: false,
     vendorId: NINTENDO_VENDOR_ID,
@@ -18,9 +19,28 @@ function makeHidDevice(productId: number, productName: string): HIDDevice {
     close: vi.fn(async () => {
       device.opened = false;
     }),
-    sendReport: vi.fn(async () => undefined),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
+    sendReport: vi.fn(async (reportId: number) => {
+      if (reportId === 0x01 && inputReportListener) {
+        queueMicrotask(() => {
+          inputReportListener?.({
+            type: 'inputreport',
+            device: device as unknown as HIDDevice,
+            reportId: 0x30,
+            data: new DataView(Uint8Array.from([0x00, batteryPowerInfo]).buffer),
+          } as HIDInputReportEvent);
+        });
+      }
+    }),
+    addEventListener: vi.fn((type: string, listener: EventListenerOrEventListenerObject) => {
+      if (type === 'inputreport') {
+        inputReportListener = listener as (event: HIDInputReportEvent) => void;
+      }
+    }),
+    removeEventListener: vi.fn((type: string) => {
+      if (type === 'inputreport') {
+        inputReportListener = null;
+      }
+    }),
     dispatchEvent: vi.fn(() => true),
   };
 
@@ -51,13 +71,13 @@ describe('joyconWebHidClient', () => {
 
   it('lists granted left and right Joy-Con devices from WebHID', async () => {
     installHid([
-      makeHidDevice(JOYCON_LEFT_PRODUCT_ID, 'Joy-Con (L)'),
-      makeHidDevice(JOYCON_RIGHT_PRODUCT_ID, 'Joy-Con (R)'),
+      makeHidDevice(JOYCON_LEFT_PRODUCT_ID, 'Joy-Con (L)', 0x80),
+      makeHidDevice(JOYCON_RIGHT_PRODUCT_ID, 'Joy-Con (R)', 0x60),
     ]);
 
     await expect(listJoyConDevices()).resolves.toEqual([
-      expect.objectContaining({ side: 'left', product: 'Joy-Con (L)', vendorId: '0x057e', productId: '0x2006' }),
-      expect.objectContaining({ side: 'right', product: 'Joy-Con (R)', vendorId: '0x057e', productId: '0x2007' }),
+      expect.objectContaining({ side: 'left', product: 'Joy-Con (L)', vendorId: '0x057e', productId: '0x2006', battery: expect.objectContaining({ percent: 100 }) }),
+      expect.objectContaining({ side: 'right', product: 'Joy-Con (R)', vendorId: '0x057e', productId: '0x2007', battery: expect.objectContaining({ percent: 75 }) }),
     ]);
   });
 
