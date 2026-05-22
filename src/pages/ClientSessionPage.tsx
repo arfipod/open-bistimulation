@@ -26,6 +26,7 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [hasShownTactilePanel, setHasShownTactilePanel] = useState(false);
   const clock = useServerClock();
   const { t } = useI18n();
 
@@ -142,6 +143,12 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  useEffect(() => {
+    if (state?.tactile.enabled && !hasShownTactilePanel) {
+      setHasShownTactilePanel(true);
+    }
+  }, [hasShownTactilePanel, state?.tactile.enabled]);
+
   const enterFullscreen = useCallback(() => {
     const requestFullscreen = document.documentElement.requestFullscreen;
 
@@ -217,7 +224,7 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
             error={joyConWebHid.error}
             outputStatus={tactileOutput}
             panelCollapsible
-            defaultPanelCollapsed
+            defaultPanelCollapsed={hasShownTactilePanel}
             onRequestDevices={() => void joyConWebHid.requestDevices()}
             onDisconnectDevices={() => void joyConWebHid.disconnectDevices()}
             onRefresh={() => void joyConWebHid.refresh()}

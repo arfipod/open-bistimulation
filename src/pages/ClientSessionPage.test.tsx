@@ -144,11 +144,29 @@ describe('ClientSessionPage', () => {
 
     renderWithI18n(<ClientSessionPage sessionId="session-id" token="client-token" />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Expand tactile panel' }));
-    expect(screen.getByRole('button', { name: 'Add Joy-Cons' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Add Joy-Cons' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Add Joy-Cons' }));
 
     expect(mocks.requestJoyConDevices).toHaveBeenCalledTimes(1);
+  });
+
+  it('expands the tactile panel the first time the controller enables tactile output', async () => {
+    mocks.getBlsSession.mockResolvedValue({ state: makeState({ tactile: { ...DEFAULT_SESSION_STATE.tactile, enabled: false } }) });
+
+    renderWithI18n(<ClientSessionPage sessionId="session-id" token="client-token" />);
+
+    expect(await screen.findByText('stage idle')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add Joy-Cons' })).not.toBeInTheDocument();
+
+    act(() => {
+      mocks.onMessage?.({
+        kind: 'STATE_UPDATED',
+        state: makeState({ tactile: { ...DEFAULT_SESSION_STATE.tactile, enabled: true } }),
+        emittedAtMs: 1,
+      });
+    });
+
+    expect(screen.getByRole('button', { name: 'Add Joy-Cons' })).toBeInTheDocument();
   });
 
   it('shows only an exit control while the client view is fullscreen', async () => {
