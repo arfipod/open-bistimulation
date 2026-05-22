@@ -108,8 +108,8 @@ describe('TactilePanel', () => {
     expect(screen.getByText('Left Joy-Con')).toBeInTheDocument();
     expect(screen.getByText('Right Joy-Con')).toBeInTheDocument();
     expect(screen.getByText('75%')).toBeInTheDocument();
-    expect(screen.getByText('Last Joy-Con pulse')).toBeInTheDocument();
-    expect(screen.getByText('Pulse count')).toBeInTheDocument();
+    expect(screen.queryByText('Last Joy-Con pulse')).not.toBeInTheDocument();
+    expect(screen.queryByText('Pulse count')).not.toBeInTheDocument();
 
     const enabled = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
     fireEvent.click(enabled);
@@ -134,8 +134,72 @@ describe('TactilePanel', () => {
 
     fireEvent.change(screen.getByLabelText('Pulse duration: 120 ms'), { target: { value: '240' } });
     expect(onChange).toHaveBeenLastCalledWith({ ...tactile, pulseDurationMs: 240 });
+  });
 
-    fireEvent.change(screen.getByLabelText('Internal pause: 40 ms'), { target: { value: '120' } });
-    expect(onChange).toHaveBeenLastCalledWith({ ...tactile, gapMs: 120 });
+  it('collapses the Joy-Con status block when requested', () => {
+    const tactile: TactileSettings = { ...DEFAULT_SESSION_STATE.tactile };
+
+    renderWithI18n(
+      <TactilePanel
+        tactile={tactile}
+        onChange={vi.fn()}
+        webHidSupported
+        requestingDevices={false}
+        devices={[]}
+        leftConnected={false}
+        rightConnected={false}
+        error={null}
+        outputStatus={{
+          lastPulseSide: null,
+          lastPulseAt: null,
+          pulseCount: 0,
+          lastError: null,
+          skippedPulseCount: 0,
+        }}
+        deviceStatusCollapsible
+        defaultDeviceStatusCollapsed
+      />,
+    );
+
+    expect(screen.getByText('Browser Joy-Con access')).toBeInTheDocument();
+    expect(screen.queryByText('Left Joy-Con')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Browser Joy-Con access/ }));
+
+    expect(screen.getByText('Left Joy-Con')).toBeInTheDocument();
+    expect(screen.getByText('Right Joy-Con')).toBeInTheDocument();
+  });
+
+  it('collapses the whole tactile panel when requested', () => {
+    const tactile: TactileSettings = { ...DEFAULT_SESSION_STATE.tactile };
+
+    renderWithI18n(
+      <TactilePanel
+        tactile={tactile}
+        webHidSupported
+        requestingDevices={false}
+        devices={[]}
+        leftConnected={false}
+        rightConnected={false}
+        error={null}
+        outputStatus={{
+          lastPulseSide: null,
+          lastPulseAt: null,
+          pulseCount: 0,
+          lastError: null,
+          skippedPulseCount: 0,
+        }}
+        panelCollapsible
+        defaultPanelCollapsed
+        onRequestDevices={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Tactile')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add Joy-Cons' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand tactile panel' }));
+
+    expect(screen.getByRole('button', { name: 'Add Joy-Cons' })).toBeInTheDocument();
   });
 });

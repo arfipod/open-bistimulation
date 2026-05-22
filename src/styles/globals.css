@@ -527,6 +527,37 @@ html:fullscreen .app-shell-client .app-footer {
   margin-bottom: 16px;
 }
 
+.panel-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tactile-panel.is-collapsed .panel-header {
+  margin-bottom: 0;
+}
+
+.tactile-panel-header-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tactile-panel-header-button:focus-visible {
+  outline: 3px solid #9bbbd6;
+  outline-offset: 6px;
+  border-radius: 6px;
+}
+
 .panel-header h2,
 .client-preview h2 {
   margin: 0;
@@ -779,6 +810,70 @@ input[type='range'] {
   min-width: 0;
 }
 
+.tactile-disclosure-button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tactile-disclosure-button:focus-visible,
+.collapse-toggle-button:focus-visible {
+  outline: 3px solid #9bbbd6;
+  outline-offset: 3px;
+}
+
+.tactile-status-summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.tactile-status-details {
+  display: grid;
+  gap: 10px;
+}
+
+.collapse-toggle-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #111827;
+  cursor: pointer;
+}
+
+.collapse-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.tactile-status-summary .collapse-glyph {
+  color: #111827;
+}
+
 .joycon-device-grid {
   display: grid;
   gap: 8px;
@@ -880,25 +975,6 @@ input[type='range'] {
 
 .battery-status.is-unknown {
   color: #64748b;
-}
-
-.tactile-output-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px 10px;
-  padding-top: 2px;
-  font-size: 0.9rem;
-}
-
-.tactile-output-grid span {
-  min-width: 0;
-  color: var(--muted);
-  font-weight: 800;
-}
-
-.tactile-output-grid strong {
-  min-width: 0;
-  text-align: right;
 }
 
 .tactile-actions {

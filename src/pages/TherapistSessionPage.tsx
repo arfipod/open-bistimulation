@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { TACTILE_INTERNAL_PAUSE_MS } from '../domain/defaults';
 import type { JoyConClientStatus, SessionBroadcastMessage, SessionPreferences, SessionState } from '../domain/sessionTypes';
 import {
   completeStopPlayback,
@@ -329,6 +330,8 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
             rightConnected={clientJoyConStatus.rightConnected}
             error={clientJoyConStatus.error}
             outputStatus={clientJoyConStatus.outputStatus}
+            deviceStatusCollapsible
+            defaultDeviceStatusCollapsed
           />
           <section className="stats-panel panel" aria-label={t('controls.time')}>
             <SessionStats state={state} serverTimeOffsetMs={clock.offsetMs} />
@@ -386,7 +389,7 @@ const undefinedState: SessionState = {
   tactile: {
     enabled: false,
     pulseDurationMs: 120,
-    gapMs: 40,
+    gapMs: TACTILE_INTERNAL_PAUSE_MS,
     intensity: 'medium',
   },
 };

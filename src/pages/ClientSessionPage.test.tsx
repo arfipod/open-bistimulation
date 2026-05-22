@@ -144,7 +144,8 @@ describe('ClientSessionPage', () => {
 
     renderWithI18n(<ClientSessionPage sessionId="session-id" token="client-token" />);
 
-    expect(await screen.findByRole('button', { name: 'Add Joy-Cons' })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Expand tactile panel' }));
+    expect(screen.getByRole('button', { name: 'Add Joy-Cons' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Add Joy-Cons' }));
 
     expect(mocks.requestJoyConDevices).toHaveBeenCalledTimes(1);

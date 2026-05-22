@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { TACTILE_INTERNAL_PAUSE_MS } from '../domain/defaults';
 import type { JoyConClientStatus, SessionBroadcastMessage, SessionState } from '../domain/sessionTypes';
 import { getBlsSession } from '../lib/sessionApi';
 import { getServerNowMs } from '../domain/motion';
@@ -215,6 +216,8 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
             rightConnected={joyConWebHid.rightConnected}
             error={joyConWebHid.error}
             outputStatus={tactileOutput}
+            panelCollapsible
+            defaultPanelCollapsed
             onRequestDevices={() => void joyConWebHid.requestDevices()}
             onDisconnectDevices={() => void joyConWebHid.disconnectDevices()}
             onRefresh={() => void joyConWebHid.refresh()}
@@ -254,7 +257,7 @@ const fallbackState: SessionState = {
   tactile: {
     enabled: false,
     pulseDurationMs: 120,
-    gapMs: 40,
+    gapMs: TACTILE_INTERNAL_PAUSE_MS,
     intensity: 'medium',
   },
 };

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { TACTILE_INTERNAL_PAUSE_MS } from '../domain/defaults';
 import { getMotionSnapshot, getServerNowMs } from '../domain/motion';
 import type { JoyConOutputStatus, SessionState } from '../domain/sessionTypes';
 import type { JoyConIntensity } from '../lib/joyconTypes';
@@ -145,7 +146,7 @@ export function useJoyConTactileOutput({
       } else if (snapshot.halfCycleIndex !== lastHalfCycleRef.current) {
         lastHalfCycleRef.current = snapshot.halfCycleIndex;
 
-        const minSpacingMs = state.tactile.pulseDurationMs + state.tactile.gapMs;
+        const minSpacingMs = state.tactile.pulseDurationMs + TACTILE_INTERNAL_PAUSE_MS;
         const lastPulseStartedAt = lastPulseStartedAtRef.current;
         const isInsideGap = lastPulseStartedAt !== null && nowMs - lastPulseStartedAt < minSpacingMs;
 

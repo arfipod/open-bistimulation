@@ -1,5 +1,7 @@
 import type { SessionPreferences, SessionState } from './sessionTypes';
 
+export const TACTILE_INTERNAL_PAUSE_MS = 40;
+
 export const DEFAULT_SESSION_STATE: SessionState = {
   version: 1,
   status: 'idle',
@@ -28,7 +30,7 @@ export const DEFAULT_SESSION_STATE: SessionState = {
   tactile: {
     enabled: false,
     pulseDurationMs: 120,
-    gapMs: 40,
+    gapMs: TACTILE_INTERNAL_PAUSE_MS,
     intensity: 'medium',
   },
 };
