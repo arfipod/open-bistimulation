@@ -72,9 +72,9 @@ describe('TactilePanel', () => {
     const tactile: TactileSettings = { ...DEFAULT_SESSION_STATE.tactile };
     const onChange = vi.fn();
     const onRequestDevices = vi.fn();
+    const onDisconnectDevices = vi.fn();
     const onRefresh = vi.fn();
     const onTestPulse = vi.fn();
-    const onNeutral = vi.fn();
     const { container } = renderWithI18n(
       <TactilePanel
         tactile={tactile}
@@ -96,9 +96,9 @@ describe('TactilePanel', () => {
           skippedPulseCount: 0,
         }}
         onRequestDevices={onRequestDevices}
+        onDisconnectDevices={onDisconnectDevices}
         onRefresh={onRefresh}
         onTestPulse={onTestPulse}
-        onNeutral={onNeutral}
       />,
     );
 
@@ -118,6 +118,9 @@ describe('TactilePanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add Joy-Cons' }));
     expect(onRequestDevices).toHaveBeenCalled();
 
+    fireEvent.click(screen.getByRole('button', { name: 'Disconnect Joy-Cons' }));
+    expect(onDisconnectDevices).toHaveBeenCalled();
+
     fireEvent.click(screen.getByRole('button', { name: 'Refresh devices' }));
     expect(onRefresh).toHaveBeenCalled();
 
@@ -126,8 +129,8 @@ describe('TactilePanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Test left' }));
     expect(onTestPulse).toHaveBeenLastCalledWith({ side: 'left', intensity: 'medium', duration: 120, repeats: 1 });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Stop rumble' }));
-    expect(onNeutral).toHaveBeenLastCalledWith('both');
+    expect(screen.queryByRole('button', { name: /stop/i })).not.toBeInTheDocument();
+    expect(container.querySelectorAll('.panel-note')).toHaveLength(1);
 
     fireEvent.change(screen.getByLabelText('Pulse duration: 120 ms'), { target: { value: '240' } });
     expect(onChange).toHaveBeenLastCalledWith({ ...tactile, pulseDurationMs: 240 });

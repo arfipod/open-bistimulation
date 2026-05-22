@@ -338,6 +338,26 @@ export async function requestJoyConDevices(): Promise<JoyConDeviceSummary[]> {
   return listJoyConDevices();
 }
 
+export async function disconnectJoyConDevices(): Promise<void> {
+  const devices = await getGrantedJoyConHidDevices();
+  const events: JoyConEvent[] = [];
+
+  await Promise.all(
+    devices.map(async (device) => {
+      try {
+        if (device.opened) {
+          await sendNeutral(device, events);
+          await device.close();
+        }
+
+        await device.forget?.();
+      } catch (error) {
+        throw new JoyConWebHidError(error instanceof Error ? error.message : 'Joy-Con disconnect failed.');
+      }
+    }),
+  );
+}
+
 export async function listJoyConDevices(): Promise<JoyConDeviceSummary[]> {
   const devices = await getGrantedJoyConHidDevices();
   return Promise.all(

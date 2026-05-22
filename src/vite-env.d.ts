@@ -43,6 +43,7 @@ interface HIDDevice extends EventTarget {
   readonly collections: HIDCollectionInfo[];
   open(): Promise<void>;
   close(): Promise<void>;
+  forget?(): Promise<void>;
   sendReport(reportId: number, data: BufferSource): Promise<void>;
 }
 

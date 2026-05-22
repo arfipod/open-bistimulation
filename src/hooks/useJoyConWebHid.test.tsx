@@ -8,12 +8,14 @@ const mocks = vi.hoisted(() => ({
   requestJoyConDevices: vi.fn(),
   pulseJoyCon: vi.fn(),
   neutralJoyCon: vi.fn(),
+  disconnectJoyConDevices: vi.fn(),
 }));
 
 vi.mock('../lib/joyconWebHidClient', () => ({
   isJoyConWebHidSupported: () => mocks.supported,
   listJoyConDevices: mocks.listJoyConDevices,
   requestJoyConDevices: mocks.requestJoyConDevices,
+  disconnectJoyConDevices: mocks.disconnectJoyConDevices,
   pulseJoyCon: mocks.pulseJoyCon,
   neutralJoyCon: mocks.neutralJoyCon,
 }));
@@ -23,6 +25,7 @@ describe('useJoyConWebHid', () => {
     mocks.supported = true;
     mocks.listJoyConDevices.mockReset().mockResolvedValue([]);
     mocks.requestJoyConDevices.mockReset().mockResolvedValue([]);
+    mocks.disconnectJoyConDevices.mockReset().mockResolvedValue(undefined);
     mocks.pulseJoyCon.mockReset().mockResolvedValue({ ok: true, events: [] });
     mocks.neutralJoyCon.mockReset().mockResolvedValue({ ok: true, events: [] });
   });
@@ -52,6 +55,29 @@ describe('useJoyConWebHid', () => {
 
     expect(mocks.requestJoyConDevices).toHaveBeenCalledTimes(1);
     expect(result.current.leftConnected).toBe(true);
+    expect(result.current.rightConnected).toBe(false);
+  });
+
+  it('disconnects Joy-Cons and clears connection state', async () => {
+    mocks.requestJoyConDevices.mockResolvedValueOnce([
+      { side: 'left', product: 'Joy-Con (L)' },
+      { side: 'right', product: 'Joy-Con (R)' },
+    ]);
+
+    const { result } = renderHook(() => useJoyConWebHid());
+
+    await act(async () => {
+      await result.current.requestDevices();
+    });
+
+    expect(result.current.leftConnected).toBe(true);
+
+    await act(async () => {
+      await result.current.disconnectDevices();
+    });
+
+    expect(mocks.disconnectJoyConDevices).toHaveBeenCalledTimes(1);
+    expect(result.current.leftConnected).toBe(false);
     expect(result.current.rightConnected).toBe(false);
   });
 

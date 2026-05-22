@@ -15,9 +15,9 @@ interface TactilePanelProps {
   error: string | null;
   outputStatus: JoyConTactileOutputStatus;
   onRequestDevices?: () => void;
+  onDisconnectDevices?: () => void;
   onRefresh?: () => void;
   onTestPulse?: (options: { side: JoyConSide; intensity: JoyConIntensity; duration: number; repeats: number }) => void;
-  onNeutral?: (side: JoyConSide) => void;
 }
 
 const INTENSITIES: Array<{
@@ -92,9 +92,9 @@ export function TactilePanel({
   error,
   outputStatus,
   onRequestDevices,
+  onDisconnectDevices,
   onRefresh,
   onTestPulse,
-  onNeutral,
 }: TactilePanelProps) {
   const { t } = useI18n();
 
@@ -104,7 +104,7 @@ export function TactilePanel({
   const tactileReady = leftConnected && rightConnected;
   const intensity = tactile.intensity ?? 'medium';
   const settingsEditable = Boolean(onChange);
-  const showDeviceActions = Boolean(onRequestDevices || onRefresh || onTestPulse || onNeutral);
+  const showDeviceActions = Boolean(onRequestDevices || onDisconnectDevices || onRefresh || onTestPulse);
 
   const testSide = (side: JoyConSide) => {
     onTestPulse?.({ side, intensity, duration: tactile.pulseDurationMs, repeats: 1 });
@@ -168,6 +168,11 @@ export function TactilePanel({
               {requestingDevices ? t('common.loading') : t('tactile.addJoyCons')}
             </button>
           ) : null}
+          {onDisconnectDevices ? (
+            <button className="secondary-button compact-button" type="button" disabled={!webHidSupported || !anyConnected} onClick={onDisconnectDevices}>
+              {t('tactile.disconnectJoyCons')}
+            </button>
+          ) : null}
           {onRefresh ? (
             <button className="secondary-button compact-button" type="button" disabled={!webHidSupported} onClick={onRefresh}>
               {t('tactile.refreshDevices')}
@@ -190,11 +195,6 @@ export function TactilePanel({
                 {t('tactile.testBoth')}
               </button>
             </>
-          ) : null}
-          {onNeutral ? (
-            <button className="danger-button compact-button" type="button" disabled={!webHidSupported || !anyConnected} onClick={() => onNeutral('both')}>
-              {t('tactile.stopRumble')}
-            </button>
           ) : null}
         </div>
       ) : null}
@@ -244,8 +244,6 @@ export function TactilePanel({
           </div>
         </>
       ) : null}
-
-      <p className="panel-note">{t('tactile.webHidNote')}</p>
     </section>
   );
 }

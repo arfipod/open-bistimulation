@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { listJoyConDevices, pulseJoyCon, requestJoyConDevices } from './joyconWebHidClient';
+import { disconnectJoyConDevices, listJoyConDevices, pulseJoyCon, requestJoyConDevices } from './joyconWebHidClient';
 
 const NINTENDO_VENDOR_ID = 0x057e;
 const JOYCON_LEFT_PRODUCT_ID = 0x2006;
@@ -19,6 +19,7 @@ function makeHidDevice(productId: number, productName: string, batteryPowerInfo 
     close: vi.fn(async () => {
       device.opened = false;
     }),
+    forget: vi.fn(async () => undefined),
     sendReport: vi.fn(async (reportId: number) => {
       if (reportId === 0x01 && inputReportListener) {
         queueMicrotask(() => {
@@ -92,6 +93,17 @@ describe('joyconWebHidClient', () => {
         { vendorId: NINTENDO_VENDOR_ID, productId: JOYCON_RIGHT_PRODUCT_ID },
       ],
     });
+  });
+
+  it('forgets granted Joy-Con devices when disconnecting', async () => {
+    const left = makeHidDevice(JOYCON_LEFT_PRODUCT_ID, 'Joy-Con (L)');
+    const right = makeHidDevice(JOYCON_RIGHT_PRODUCT_ID, 'Joy-Con (R)');
+    installHid([left, right]);
+
+    await disconnectJoyConDevices();
+
+    expect(left.forget).toHaveBeenCalledTimes(1);
+    expect(right.forget).toHaveBeenCalledTimes(1);
   });
 
   it('sends enable, rumble, and neutral output reports for a pulse', async () => {

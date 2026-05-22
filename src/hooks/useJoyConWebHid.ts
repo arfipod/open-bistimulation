@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { JoyConDeviceSummary, JoyConIntensity, JoyConSide } from '../lib/joyconTypes';
-import { isJoyConWebHidSupported, listJoyConDevices, neutralJoyCon, pulseJoyCon, requestJoyConDevices } from '../lib/joyconWebHidClient';
+import { disconnectJoyConDevices, isJoyConWebHidSupported, listJoyConDevices, neutralJoyCon, pulseJoyCon, requestJoyConDevices } from '../lib/joyconWebHidClient';
 
 interface TestPulseOptions {
   side: JoyConSide;
@@ -22,6 +22,7 @@ export interface UseJoyConWebHidResult {
   error: string | null;
   refresh: () => Promise<void>;
   requestDevices: () => Promise<void>;
+  disconnectDevices: () => Promise<void>;
   testPulse: (options: TestPulseOptions) => Promise<void>;
   neutral: (options?: NeutralOptions) => Promise<void>;
 }
@@ -108,6 +109,27 @@ export function useJoyConWebHid(): UseJoyConWebHidResult {
     }
   }, [supported]);
 
+  const disconnectDevices = useCallback(async () => {
+    if (!supported) {
+      setDevices([]);
+      setError(null);
+      return;
+    }
+
+    try {
+      await disconnectJoyConDevices();
+
+      if (mountedRef.current) {
+        setDevices([]);
+        setError(null);
+      }
+    } catch (disconnectError) {
+      if (mountedRef.current) {
+        setError(messageFromError(disconnectError));
+      }
+    }
+  }, [supported]);
+
   useEffect(() => {
     mountedRef.current = true;
     void refresh();
@@ -180,9 +202,10 @@ export function useJoyConWebHid(): UseJoyConWebHidResult {
       error,
       refresh,
       requestDevices,
+      disconnectDevices,
       testPulse,
       neutral,
     }),
-    [devices, error, neutral, refresh, requesting, requestDevices, supported, testPulse],
+    [devices, disconnectDevices, error, neutral, refresh, requesting, requestDevices, supported, testPulse],
   );
 }

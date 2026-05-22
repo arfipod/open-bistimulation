@@ -216,9 +216,9 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
             error={joyConWebHid.error}
             outputStatus={tactileOutput}
             onRequestDevices={() => void joyConWebHid.requestDevices()}
+            onDisconnectDevices={() => void joyConWebHid.disconnectDevices()}
             onRefresh={() => void joyConWebHid.refresh()}
             onTestPulse={(options) => void joyConWebHid.testPulse(options)}
-            onNeutral={(side) => void joyConWebHid.neutral({ side })}
           />
         </div>
       ) : null}
