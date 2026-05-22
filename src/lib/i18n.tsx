@@ -137,8 +137,8 @@ const translations = {
     'tactile.addJoyCons': 'Add Joy-Cons',
     'tactile.refreshDevices': 'Refresh devices',
     'tactile.notDetected': 'Not detected',
-    'tactile.webHidRequirement': 'Pair both Joy-Cons over Bluetooth, then add them from the browser device prompt.',
-    'tactile.webHidNote': 'Joy-Con tactile output is sent directly from this browser through WebHID; no local bridge is needed.',
+    'tactile.webHidRequirement': 'Pair both Joy-Cons over Bluetooth on the participant computer, then add them from the participant browser.',
+    'tactile.webHidNote': 'Joy-Con tactile output is sent directly from the participant browser through WebHID; no local bridge is needed.',
     'tactile.intensity': 'Intensity',
     'tactile.intensity.low': 'Low',
     'tactile.intensity.medium': 'Medium',
@@ -178,7 +178,7 @@ const translations = {
     'legal.privacy.item1':
       'Supabase stores session id, controller and participant tokens, session state, preferences, and timestamps.',
     'legal.privacy.item2':
-      'Tactile preferences may include whether tactile output is enabled, pulse duration, and gap duration; Joy-Con detection and rumble details stay in the controller browser.',
+      'Tactile preferences may include whether tactile output is enabled, pulse duration, intensity, and gap duration; Joy-Con detection and rumble details stay in the participant browser.',
     'legal.privacy.item3':
       'The app does not intentionally store participant names, professional notes, diagnostic labels, symptoms, care plans, or transcripts.',
     'legal.privacy.item4':
@@ -332,8 +332,8 @@ const translations = {
     'tactile.addJoyCons': 'Agregar Joy-Con',
     'tactile.refreshDevices': 'Actualizar mandos',
     'tactile.notDetected': 'No detectado',
-    'tactile.webHidRequirement': 'Empareja ambos Joy-Con por Bluetooth y luego agrégalos desde el aviso de dispositivos del navegador.',
-    'tactile.webHidNote': 'La salida táctil Joy-Con se envía directamente desde este navegador mediante WebHID; no hace falta puente local.',
+    'tactile.webHidRequirement': 'Empareja ambos Joy-Con por Bluetooth en el ordenador del participante y luego agrégalos desde su navegador.',
+    'tactile.webHidNote': 'La salida táctil Joy-Con se envía directamente desde el navegador del participante mediante WebHID; no hace falta puente local.',
     'tactile.intensity': 'Intensidad',
     'tactile.intensity.low': 'Baja',
     'tactile.intensity.medium': 'Media',
@@ -373,7 +373,7 @@ const translations = {
     'legal.privacy.item1':
       'Supabase almacena id de sesión, tokens de controlador y participante, estado de sesión, preferencias y marcas de tiempo.',
     'legal.privacy.item2':
-      'Las preferencias táctiles pueden incluir si la salida táctil está activada, la duración del pulso y la duración de la pausa; la detección Joy-Con y los detalles de rumble permanecen en el navegador del controlador.',
+      'Las preferencias táctiles pueden incluir si la salida táctil está activada, la duración del pulso, la intensidad y la duración de la pausa; la detección Joy-Con y los detalles de rumble permanecen en el navegador del participante.',
     'legal.privacy.item3':
       'La app no almacena intencionalmente nombres de participantes, notas profesionales, etiquetas diagnósticas, síntomas, planes de atención ni transcripciones.',
     'legal.privacy.item4':

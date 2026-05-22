@@ -75,7 +75,6 @@ describe('TactilePanel', () => {
     const onRefresh = vi.fn();
     const onTestPulse = vi.fn();
     const onNeutral = vi.fn();
-    const onIntensityChange = vi.fn();
     const { container } = renderWithI18n(
       <TactilePanel
         tactile={tactile}
@@ -89,8 +88,6 @@ describe('TactilePanel', () => {
         leftConnected
         rightConnected
         error={null}
-        intensity="medium"
-        onIntensityChange={onIntensityChange}
         outputStatus={{
           lastPulseSide: null,
           lastPulseAt: null,
@@ -105,7 +102,7 @@ describe('TactilePanel', () => {
       />,
     );
 
-    expect(screen.getByText('Pair both Joy-Cons over Bluetooth, then add them from the browser device prompt.')).toBeInTheDocument();
+    expect(screen.getByText('Pair both Joy-Cons over Bluetooth on the participant computer, then add them from the participant browser.')).toBeInTheDocument();
     expect(screen.getByText('Browser Joy-Con access')).toBeInTheDocument();
     expect(screen.getByText('Joy-Cons ready')).toBeInTheDocument();
     expect(screen.getByText('Left Joy-Con')).toBeInTheDocument();
@@ -125,7 +122,7 @@ describe('TactilePanel', () => {
     expect(onRefresh).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'High' }));
-    expect(onIntensityChange).toHaveBeenLastCalledWith('high');
+    expect(onChange).toHaveBeenLastCalledWith({ ...tactile, intensity: 'high' });
     fireEvent.click(screen.getByRole('button', { name: 'Test left' }));
     expect(onTestPulse).toHaveBeenLastCalledWith({ side: 'left', intensity: 'medium', duration: 120, repeats: 1 });
 

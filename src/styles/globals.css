@@ -1060,6 +1060,19 @@ input[type='range'] {
   background: #b91c1c;
 }
 
+.client-tactile-panel {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 25;
+  width: min(390px, calc(100% - 36px));
+}
+
+.client-tactile-panel .control-panel {
+  max-height: min(72vh, 680px);
+  overflow: auto;
+}
+
 .join-audio-panel {
   position: fixed;
   left: 50%;

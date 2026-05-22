@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getMotionSnapshot, getServerNowMs } from '../domain/motion';
-import type { SessionState, TactileSide } from '../domain/sessionTypes';
+import type { JoyConOutputStatus, SessionState } from '../domain/sessionTypes';
 import type { JoyConIntensity } from '../lib/joyconTypes';
 import { neutralJoyCon, pulseJoyCon } from '../lib/joyconWebHidClient';
 
@@ -11,15 +11,9 @@ interface UseJoyConTactileOutputOptions {
   enabled: boolean;
 }
 
-export interface JoyConTactileOutputStatus {
-  lastPulseSide: TactileSide | null;
-  lastPulseAt: number | null;
-  pulseCount: number;
-  lastError: string | null;
-  skippedPulseCount: number;
-}
+export type JoyConTactileOutputStatus = JoyConOutputStatus;
 
-const IDLE_STATUS: JoyConTactileOutputStatus = {
+const IDLE_STATUS: JoyConOutputStatus = {
   lastPulseSide: null,
   lastPulseAt: null,
   pulseCount: 0,
@@ -49,7 +43,7 @@ export function useJoyConTactileOutput({
 
   const active = enabled && state.status === 'running' && state.tactile.enabled;
 
-  const updateStatus = useCallback((recipe: (current: JoyConTactileOutputStatus) => JoyConTactileOutputStatus) => {
+  const updateStatus = useCallback((recipe: (current: JoyConOutputStatus) => JoyConOutputStatus) => {
     if (mountedRef.current) {
       setStatus(recipe);
     }

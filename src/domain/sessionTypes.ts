@@ -5,6 +5,7 @@ export type MotionOrder = 'left-to-right' | 'right-to-left' | 'random';
 export type VerticalPosition = 'top' | 'center' | 'bottom';
 export type AudioSound = 'snap' | 'beep' | 'bell' | 'heartbeat';
 export type TactileSide = 'left' | 'right';
+export type TactileIntensity = 'low' | 'medium' | 'high';
 
 export interface VisualSettings {
   enabled: boolean;
@@ -28,6 +29,7 @@ export interface TactileSettings {
   enabled: boolean;
   pulseDurationMs: number;
   gapMs: number;
+  intensity?: TactileIntensity;
 }
 
 export interface SessionState {
@@ -71,6 +73,44 @@ export interface ClientStatus {
   lastSeenAtMs: number | null;
 }
 
+export interface JoyConOutputStatus {
+  lastPulseSide: TactileSide | null;
+  lastPulseAt: number | null;
+  pulseCount: number;
+  lastError: string | null;
+  skippedPulseCount: number;
+}
+
+export interface JoyConClientStatus {
+  webHidSupported: boolean;
+  requestingDevices: boolean;
+  devices: Array<{
+    index?: number;
+    side: 'left' | 'right' | 'unknown';
+    product?: string;
+    manufacturer?: string;
+    vendorId?: string;
+    productId?: string;
+    usagePage?: string | null;
+    usage?: string | null;
+    interface?: number;
+    release?: number;
+    serialNumber?: string | null;
+    battery?: {
+      label?: string | null;
+      level?: number | null;
+      percent?: number | null;
+      charging?: boolean | null;
+      error?: string;
+    } | null;
+    path?: string;
+  }>;
+  leftConnected: boolean;
+  rightConnected: boolean;
+  error: string | null;
+  outputStatus: JoyConOutputStatus;
+}
+
 export type SessionBroadcastMessage =
   | {
       kind: 'STATE_UPDATED';
@@ -79,6 +119,11 @@ export type SessionBroadcastMessage =
     }
   | {
       kind: 'CLIENT_READY';
+      emittedAtMs: number;
+    }
+  | {
+      kind: 'JOYCON_STATUS';
+      status: JoyConClientStatus;
       emittedAtMs: number;
     }
   | {

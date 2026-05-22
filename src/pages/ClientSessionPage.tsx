@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { SessionBroadcastMessage, SessionState } from '../domain/sessionTypes';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { JoyConClientStatus, SessionBroadcastMessage, SessionState } from '../domain/sessionTypes';
 import { getBlsSession } from '../lib/sessionApi';
 import { getServerNowMs } from '../domain/motion';
 import { useI18n } from '../lib/i18n';
 import { useAudioBls } from '../hooks/useAudioBls';
+import { useJoyConTactileOutput } from '../hooks/useJoyConTactileOutput';
+import { useJoyConWebHid } from '../hooks/useJoyConWebHid';
 import { useServerClock } from '../hooks/useServerClock';
 import { useSessionRealtime } from '../hooks/useSessionRealtime';
 import { ErrorView } from '../components/ErrorView';
 import { LoadingView } from '../components/LoadingView';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { StimulusStage } from '../components/StimulusStage';
+import { TactilePanel } from '../components/TactilePanel';
 
 interface ClientSessionPageProps {
   sessionId: string;
@@ -37,6 +40,35 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
   }, []);
 
   const { status: realtimeStatus, send } = useSessionRealtime({ sessionId, onMessage: handleMessage });
+  const joyConWebHid = useJoyConWebHid();
+  const activeState = state ?? fallbackState;
+  const tactileIntensity = activeState.tactile.intensity ?? 'medium';
+  const tactileOutput = useJoyConTactileOutput({
+    state: activeState,
+    serverTimeOffsetMs: clock.offsetMs,
+    intensity: tactileIntensity,
+    enabled: joyConWebHid.supported && joyConWebHid.leftConnected && joyConWebHid.rightConnected,
+  });
+  const joyConStatus = useMemo<JoyConClientStatus>(
+    () => ({
+      webHidSupported: joyConWebHid.supported,
+      requestingDevices: joyConWebHid.requesting,
+      devices: joyConWebHid.devices,
+      leftConnected: joyConWebHid.leftConnected,
+      rightConnected: joyConWebHid.rightConnected,
+      error: joyConWebHid.error,
+      outputStatus: tactileOutput,
+    }),
+    [
+      joyConWebHid.devices,
+      joyConWebHid.error,
+      joyConWebHid.leftConnected,
+      joyConWebHid.requesting,
+      joyConWebHid.rightConnected,
+      joyConWebHid.supported,
+      tactileOutput,
+    ],
+  );
   useAudioBls({ state: state ?? fallbackState, serverTimeOffsetMs: clock.offsetMs, unlocked: audioUnlocked, role: 'client' });
 
   useEffect(() => {
@@ -84,6 +116,20 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
     const interval = window.setInterval(sendReady, 5000);
     return () => window.clearInterval(interval);
   }, [clock.offsetMs, realtimeStatus, send]);
+
+  useEffect(() => {
+    if (realtimeStatus !== 'connected') {
+      return;
+    }
+
+    const sendJoyConStatus = () => {
+      void send({ kind: 'JOYCON_STATUS', status: joyConStatus, emittedAtMs: getServerNowMs(clock.offsetMs) });
+    };
+
+    sendJoyConStatus();
+    const interval = window.setInterval(sendJoyConStatus, 5000);
+    return () => window.clearInterval(interval);
+  }, [clock.offsetMs, joyConStatus, realtimeStatus, send]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -157,6 +203,25 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
           </button>
         </div>
       ) : null}
+
+      {!isFullscreen && state.tactile.enabled ? (
+        <div className="client-tactile-panel">
+          <TactilePanel
+            tactile={state.tactile}
+            webHidSupported={joyConWebHid.supported}
+            requestingDevices={joyConWebHid.requesting}
+            devices={joyConWebHid.devices}
+            leftConnected={joyConWebHid.leftConnected}
+            rightConnected={joyConWebHid.rightConnected}
+            error={joyConWebHid.error}
+            outputStatus={tactileOutput}
+            onRequestDevices={() => void joyConWebHid.requestDevices()}
+            onRefresh={() => void joyConWebHid.refresh()}
+            onTestPulse={(options) => void joyConWebHid.testPulse(options)}
+            onNeutral={(side) => void joyConWebHid.neutral({ side })}
+          />
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -190,5 +255,6 @@ const fallbackState: SessionState = {
     enabled: false,
     pulseDurationMs: 120,
     gapMs: 40,
+    intensity: 'medium',
   },
 };

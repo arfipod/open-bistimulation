@@ -29,6 +29,7 @@ export const DEFAULT_SESSION_STATE: SessionState = {
     enabled: false,
     pulseDurationMs: 120,
     gapMs: 40,
+    intensity: 'medium',
   },
 };
 

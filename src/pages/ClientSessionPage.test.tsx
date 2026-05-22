@@ -8,6 +8,10 @@ import { ClientSessionPage } from './ClientSessionPage';
 const mocks = vi.hoisted(() => ({
   getBlsSession: vi.fn(),
   send: vi.fn(),
+  requestJoyConDevices: vi.fn(),
+  refreshJoyConDevices: vi.fn(),
+  testJoyConPulse: vi.fn(),
+  neutralJoyCon: vi.fn(),
   onMessage: null as ((message: SessionBroadcastMessage) => void) | null,
 }));
 
@@ -28,6 +32,31 @@ vi.mock('../hooks/useSessionRealtime', () => ({
 
 vi.mock('../hooks/useAudioBls', () => ({
   useAudioBls: vi.fn(),
+}));
+
+vi.mock('../hooks/useJoyConTactileOutput', () => ({
+  useJoyConTactileOutput: () => ({
+    lastPulseSide: null,
+    lastPulseAt: null,
+    pulseCount: 0,
+    lastError: null,
+    skippedPulseCount: 0,
+  }),
+}));
+
+vi.mock('../hooks/useJoyConWebHid', () => ({
+  useJoyConWebHid: () => ({
+    supported: true,
+    requesting: false,
+    devices: [{ side: 'left', product: 'Joy-Con (L)' }],
+    leftConnected: true,
+    rightConnected: false,
+    error: null,
+    requestDevices: mocks.requestJoyConDevices,
+    refresh: mocks.refreshJoyConDevices,
+    testPulse: mocks.testJoyConPulse,
+    neutral: mocks.neutralJoyCon,
+  }),
 }));
 
 vi.mock('../components/StimulusStage', () => ({
@@ -57,6 +86,10 @@ describe('ClientSessionPage', () => {
   beforeEach(() => {
     mocks.getBlsSession.mockReset();
     mocks.send.mockReset().mockResolvedValue(undefined);
+    mocks.requestJoyConDevices.mockReset().mockResolvedValue(undefined);
+    mocks.refreshJoyConDevices.mockReset().mockResolvedValue(undefined);
+    mocks.testJoyConPulse.mockReset().mockResolvedValue(undefined);
+    mocks.neutralJoyCon.mockReset().mockResolvedValue(undefined);
     mocks.onMessage = null;
     setFullscreenElement(null);
   });
@@ -79,6 +112,11 @@ describe('ClientSessionPage', () => {
         emittedAtMs: expect.any(Number),
       }),
     );
+    expect(mocks.send).toHaveBeenCalledWith({
+      kind: 'JOYCON_STATUS',
+      status: expect.objectContaining({ leftConnected: true, rightConnected: false }),
+      emittedAtMs: expect.any(Number),
+    });
 
     act(() => {
       mocks.onMessage?.({ kind: 'STATE_UPDATED', state: makeState({ status: 'running' }), emittedAtMs: 1 });
@@ -99,6 +137,17 @@ describe('ClientSessionPage', () => {
     expect(screen.getByRole('button', { name: 'Audio enabled' })).toBeInTheDocument();
     expect(screen.queryByText('The browser requires a user gesture to allow stereo audio.')).not.toBeInTheDocument();
     expect(screen.queryByText('/session/session-id/tactile/left')).not.toBeInTheDocument();
+  });
+
+  it('shows Joy-Con connection controls on the participant view when tactile output is enabled', async () => {
+    mocks.getBlsSession.mockResolvedValue({ state: makeState({ tactile: { ...DEFAULT_SESSION_STATE.tactile, enabled: true } }) });
+
+    renderWithI18n(<ClientSessionPage sessionId="session-id" token="client-token" />);
+
+    expect(await screen.findByRole('button', { name: 'Add Joy-Cons' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add Joy-Cons' }));
+
+    expect(mocks.requestJoyConDevices).toHaveBeenCalledTimes(1);
   });
 
   it('shows only an exit control while the client view is fullscreen', async () => {

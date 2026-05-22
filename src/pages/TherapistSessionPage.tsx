@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { SessionBroadcastMessage, SessionPreferences, SessionState } from '../domain/sessionTypes';
+import type { JoyConClientStatus, SessionBroadcastMessage, SessionPreferences, SessionState } from '../domain/sessionTypes';
 import {
   completeStopPlayback,
   formatElapsedTime,
@@ -16,14 +16,11 @@ import {
 } from '../domain/motion';
 import { endBlsSession, getBlsSession, getServerTimeMs, saveTherapistPreferences, saveTherapistState } from '../lib/sessionApi';
 import { saveLocalPreferences } from '../lib/localStorage';
-import type { JoyConIntensity } from '../lib/joyconTypes';
 import { clientUrl } from '../lib/url';
 import { useI18n } from '../lib/i18n';
 import { useServerClock } from '../hooks/useServerClock';
 import { useSessionRealtime } from '../hooks/useSessionRealtime';
-import { useJoyConTactileOutput } from '../hooks/useJoyConTactileOutput';
 import { useAudioBls } from '../hooks/useAudioBls';
-import { useJoyConWebHid } from '../hooks/useJoyConWebHid';
 import { useTicker } from '../hooks/useTicker';
 import { AppHeader } from '../components/AppHeader';
 import { AuditoryPanel } from '../components/AuditoryPanel';
@@ -54,7 +51,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   const [busy, setBusy] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [roundDurationMs, setRoundDurationMs] = useState<number | null>(DEFAULT_ROUND_DURATION_MS);
-  const [tactileIntensity, setTactileIntensity] = useState<JoyConIntensity>('medium');
+  const [clientJoyConStatus, setClientJoyConStatus] = useState<JoyConClientStatus>(EMPTY_CLIENT_JOYCON_STATUS);
   const autoStopStartedRef = useRef(false);
 
   const clock = useServerClock();
@@ -64,11 +61,16 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   const handleMessage = useCallback((message: SessionBroadcastMessage) => {
     if (message.kind === 'CLIENT_READY') {
       setClientLastSeenAtMs(Date.now());
+      return;
+    }
+
+    if (message.kind === 'JOYCON_STATUS') {
+      setClientLastSeenAtMs(Date.now());
+      setClientJoyConStatus(message.status);
     }
   }, []);
 
   const { status: realtimeStatus, send } = useSessionRealtime({ sessionId, onMessage: handleMessage });
-  const joyConWebHid = useJoyConWebHid();
 
   useEffect(() => {
     if (!token) {
@@ -135,12 +137,6 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
     [commitState, state, t],
   );
 
-  const tactileOutput = useJoyConTactileOutput({
-    state: state ?? undefinedState,
-    serverTimeOffsetMs: clock.offsetMs,
-    intensity: tactileIntensity,
-    enabled: joyConWebHid.supported && joyConWebHid.leftConnected && joyConWebHid.rightConnected,
-  });
   useAudioBls({ state: state ?? undefinedState, serverTimeOffsetMs: clock.offsetMs, unlocked: audioUnlocked, role: 'therapist' });
 
   useEffect(() => {
@@ -326,19 +322,13 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
           <TactilePanel
             tactile={state.tactile}
             onChange={(tactile) => patchState((current) => ({ ...current, tactile }))}
-            webHidSupported={joyConWebHid.supported}
-            requestingDevices={joyConWebHid.requesting}
-            devices={joyConWebHid.devices}
-            leftConnected={joyConWebHid.leftConnected}
-            rightConnected={joyConWebHid.rightConnected}
-            error={joyConWebHid.error}
-            intensity={tactileIntensity}
-            onIntensityChange={setTactileIntensity}
-            outputStatus={tactileOutput}
-            onRequestDevices={() => void joyConWebHid.requestDevices()}
-            onRefresh={() => void joyConWebHid.refresh()}
-            onTestPulse={(options) => void joyConWebHid.testPulse(options)}
-            onNeutral={(side) => void joyConWebHid.neutral({ side })}
+            webHidSupported={clientJoyConStatus.webHidSupported}
+            requestingDevices={clientJoyConStatus.requestingDevices}
+            devices={clientJoyConStatus.devices}
+            leftConnected={clientJoyConStatus.leftConnected}
+            rightConnected={clientJoyConStatus.rightConnected}
+            error={clientJoyConStatus.error}
+            outputStatus={clientJoyConStatus.outputStatus}
           />
           <section className="stats-panel panel" aria-label={t('controls.time')}>
             <SessionStats state={state} serverTimeOffsetMs={clock.offsetMs} />
@@ -397,5 +387,22 @@ const undefinedState: SessionState = {
     enabled: false,
     pulseDurationMs: 120,
     gapMs: 40,
+    intensity: 'medium',
+  },
+};
+
+const EMPTY_CLIENT_JOYCON_STATUS: JoyConClientStatus = {
+  webHidSupported: true,
+  requestingDevices: false,
+  devices: [],
+  leftConnected: false,
+  rightConnected: false,
+  error: null,
+  outputStatus: {
+    lastPulseSide: null,
+    lastPulseAt: null,
+    pulseCount: 0,
+    lastError: null,
+    skippedPulseCount: 0,
   },
 };

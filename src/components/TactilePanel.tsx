@@ -6,20 +6,18 @@ import { ConnectionBadge } from './ConnectionBadge';
 
 interface TactilePanelProps {
   tactile: TactileSettings;
-  onChange: (next: TactileSettings) => void;
+  onChange?: (next: TactileSettings) => void;
   webHidSupported: boolean;
   requestingDevices: boolean;
   devices: JoyConDeviceSummary[];
   leftConnected: boolean;
   rightConnected: boolean;
   error: string | null;
-  intensity: JoyConIntensity;
-  onIntensityChange: (intensity: JoyConIntensity) => void;
   outputStatus: JoyConTactileOutputStatus;
-  onRequestDevices: () => void;
-  onRefresh: () => void;
-  onTestPulse: (options: { side: JoyConSide; intensity: JoyConIntensity; duration: number; repeats: number }) => void;
-  onNeutral: (side: JoyConSide) => void;
+  onRequestDevices?: () => void;
+  onRefresh?: () => void;
+  onTestPulse?: (options: { side: JoyConSide; intensity: JoyConIntensity; duration: number; repeats: number }) => void;
+  onNeutral?: (side: JoyConSide) => void;
 }
 
 const INTENSITIES: Array<{
@@ -58,8 +56,6 @@ export function TactilePanel({
   leftConnected,
   rightConnected,
   error,
-  intensity,
-  onIntensityChange,
   outputStatus,
   onRequestDevices,
   onRefresh,
@@ -72,23 +68,28 @@ export function TactilePanel({
   const rightDevice = findDevice(devices, 'right');
   const anyConnected = leftConnected || rightConnected;
   const tactileReady = leftConnected && rightConnected;
+  const intensity = tactile.intensity ?? 'medium';
+  const settingsEditable = Boolean(onChange);
+  const showDeviceActions = Boolean(onRequestDevices || onRefresh || onTestPulse || onNeutral);
 
   const testSide = (side: JoyConSide) => {
-    onTestPulse({ side, intensity, duration: tactile.pulseDurationMs, repeats: 1 });
+    onTestPulse?.({ side, intensity, duration: tactile.pulseDurationMs, repeats: 1 });
   };
 
   return (
     <section className="control-panel">
       <header className="panel-header">
         <h2>{t('tactile.title')}</h2>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={tactile.enabled}
-            onChange={(event) => onChange({ ...tactile, enabled: event.target.checked })}
-          />
-          <span />
-        </label>
+        {settingsEditable ? (
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={tactile.enabled}
+              onChange={(event) => onChange?.({ ...tactile, enabled: event.target.checked })}
+            />
+            <span />
+          </label>
+        ) : null}
       </header>
 
       <p className="panel-note">{t('tactile.webHidRequirement')}</p>
@@ -126,73 +127,89 @@ export function TactilePanel({
         {outputStatus.lastError ? <p className="panel-note tactile-error">{t('tactile.outputError', { error: outputStatus.lastError })}</p> : null}
       </div>
 
-      <div className="tactile-actions">
-        <button className="secondary-button compact-button" type="button" disabled={!webHidSupported || requestingDevices} onClick={onRequestDevices}>
-          {requestingDevices ? t('common.loading') : t('tactile.addJoyCons')}
-        </button>
-        <button className="secondary-button compact-button" type="button" disabled={!webHidSupported} onClick={onRefresh}>
-          {t('tactile.refreshDevices')}
-        </button>
-        <button className="secondary-button compact-button" type="button" disabled={!webHidSupported || !leftConnected} onClick={() => testSide('left')}>
-          {t('tactile.testLeft')}
-        </button>
-        <button className="secondary-button compact-button" type="button" disabled={!webHidSupported || !rightConnected} onClick={() => testSide('right')}>
-          {t('tactile.testRight')}
-        </button>
-        <button
-          className="secondary-button compact-button"
-          type="button"
-          disabled={!webHidSupported || !leftConnected || !rightConnected}
-          onClick={() => testSide('both')}
-        >
-          {t('tactile.testBoth')}
-        </button>
-        <button className="danger-button compact-button" type="button" disabled={!webHidSupported || !anyConnected} onClick={() => onNeutral('both')}>
-          {t('tactile.stopRumble')}
-        </button>
-      </div>
-
-      <div className="field-group">
-        <label htmlFor="pulse-duration">{t('tactile.pulseDuration', { value: tactile.pulseDurationMs })}</label>
-        <input
-          id="pulse-duration"
-          type="range"
-          min="40"
-          max="600"
-          step="10"
-          value={tactile.pulseDurationMs}
-          onChange={(event) => onChange({ ...tactile, pulseDurationMs: Number(event.target.value) })}
-        />
-      </div>
-
-      <div className="field-group">
-        <label>{t('tactile.intensity')}</label>
-        <div className="segmented-grid three">
-          {INTENSITIES.map((nextIntensity) => (
-            <button
-              key={nextIntensity.value}
-              type="button"
-              className={intensity === nextIntensity.value ? 'is-selected' : ''}
-              onClick={() => onIntensityChange(nextIntensity.value)}
-            >
-              {t(nextIntensity.labelKey)}
+      {showDeviceActions ? (
+        <div className="tactile-actions">
+          {onRequestDevices ? (
+            <button className="secondary-button compact-button" type="button" disabled={!webHidSupported || requestingDevices} onClick={onRequestDevices}>
+              {requestingDevices ? t('common.loading') : t('tactile.addJoyCons')}
             </button>
-          ))}
+          ) : null}
+          {onRefresh ? (
+            <button className="secondary-button compact-button" type="button" disabled={!webHidSupported} onClick={onRefresh}>
+              {t('tactile.refreshDevices')}
+            </button>
+          ) : null}
+          {onTestPulse ? (
+            <>
+              <button className="secondary-button compact-button" type="button" disabled={!webHidSupported || !leftConnected} onClick={() => testSide('left')}>
+                {t('tactile.testLeft')}
+              </button>
+              <button className="secondary-button compact-button" type="button" disabled={!webHidSupported || !rightConnected} onClick={() => testSide('right')}>
+                {t('tactile.testRight')}
+              </button>
+              <button
+                className="secondary-button compact-button"
+                type="button"
+                disabled={!webHidSupported || !leftConnected || !rightConnected}
+                onClick={() => testSide('both')}
+              >
+                {t('tactile.testBoth')}
+              </button>
+            </>
+          ) : null}
+          {onNeutral ? (
+            <button className="danger-button compact-button" type="button" disabled={!webHidSupported || !anyConnected} onClick={() => onNeutral('both')}>
+              {t('tactile.stopRumble')}
+            </button>
+          ) : null}
         </div>
-      </div>
+      ) : null}
 
-      <div className="field-group">
-        <label htmlFor="tactile-gap">{t('tactile.internalPause', { value: tactile.gapMs })}</label>
-        <input
-          id="tactile-gap"
-          type="range"
-          min="0"
-          max="300"
-          step="10"
-          value={tactile.gapMs}
-          onChange={(event) => onChange({ ...tactile, gapMs: Number(event.target.value) })}
-        />
-      </div>
+      {settingsEditable ? (
+        <>
+          <div className="field-group">
+            <label htmlFor="pulse-duration">{t('tactile.pulseDuration', { value: tactile.pulseDurationMs })}</label>
+            <input
+              id="pulse-duration"
+              type="range"
+              min="40"
+              max="600"
+              step="10"
+              value={tactile.pulseDurationMs}
+              onChange={(event) => onChange?.({ ...tactile, pulseDurationMs: Number(event.target.value) })}
+            />
+          </div>
+
+          <div className="field-group">
+            <label>{t('tactile.intensity')}</label>
+            <div className="segmented-grid three">
+              {INTENSITIES.map((nextIntensity) => (
+                <button
+                  key={nextIntensity.value}
+                  type="button"
+                  className={intensity === nextIntensity.value ? 'is-selected' : ''}
+                  onClick={() => onChange?.({ ...tactile, intensity: nextIntensity.value })}
+                >
+                  {t(nextIntensity.labelKey)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="field-group">
+            <label htmlFor="tactile-gap">{t('tactile.internalPause', { value: tactile.gapMs })}</label>
+            <input
+              id="tactile-gap"
+              type="range"
+              min="0"
+              max="300"
+              step="10"
+              value={tactile.gapMs}
+              onChange={(event) => onChange?.({ ...tactile, gapMs: Number(event.target.value) })}
+            />
+          </div>
+        </>
+      ) : null}
 
       <p className="panel-note">{t('tactile.webHidNote')}</p>
     </section>
