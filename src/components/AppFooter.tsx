@@ -13,9 +13,6 @@ export function AppFooter() {
         <a href="https://github.com/arfipod/open-bistimulation" rel="noreferrer" target="_blank">
           {t('footer.github')}
         </a>
-        <a href="https://ko-fi.com/anrubiof" rel="noreferrer" target="_blank">
-          {t('footer.support')}
-        </a>
       </nav>
       <p>{t('app.footer')}</p>
       <p>{t('footer.credit')}</p>

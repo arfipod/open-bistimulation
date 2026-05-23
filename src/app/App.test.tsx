@@ -24,26 +24,23 @@ vi.mock('../pages/ClientSessionPage', () => ({
 }));
 
 describe('App routing', () => {
-  it('renders the landing page with support widget at the root route', () => {
+  it('renders the landing page at the root route', () => {
     window.history.replaceState({}, '', '/');
 
     renderWithI18n(<App />);
 
     expect(screen.getByText('landing page')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Leave an optional tip to support independent development' })).toBeInTheDocument();
   });
 
   it('renders therapist and client routes from the current URL', () => {
     window.history.replaceState({}, '', '/session/s1/therapist?t=tt');
     const { unmount } = renderWithI18n(<App />);
     expect(screen.getByText('therapist page s1 tt')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Leave an optional tip to support independent development' })).toBeInTheDocument();
     unmount();
 
     window.history.replaceState({}, '', '/session/s2/client?t=ct');
     const client = renderWithI18n(<App />);
     expect(screen.getByText('client page s2 ct')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Leave an optional tip to support independent development' })).not.toBeInTheDocument();
     client.unmount();
 
     window.history.replaceState({}, '', '/session/s3/tactile/right?t=ct');

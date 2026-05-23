@@ -100,15 +100,7 @@ The cleanup deletes expired rows from `public.sessions`.
 - The software is not a medical device.
 - Do not use it for diagnostic decisions, therapeutic decisions, crisis response, or emergency situations.
 - No warranty is provided for clinical, professional, health, or operational outcomes.
-- Optional tips support independent development and maintenance only. They do not buy access, professional services, medical services, warranties, or outcome guarantees.
-
-## Support Development And Payment Wording
-
-- The app is free to access.
-- Optional tips support independent development and maintenance.
-- Tips do not buy access, professional services, medical services, warranties, or outcome guarantees.
-- Charity-style payment wording should be avoided unless the project is run by a registered charity or non-profit.
-- Preferred wording: optional tip, leave a tip, support development.
+- The app is free to access and is supplied without professional services, medical services, warranties, or outcome guarantees.
 
 ## Quality Checks
 

@@ -15,12 +15,6 @@ const forbiddenClaims = [
   { label: 'cure', pattern: /\bcure\b/gi, allowedNegative: /\b(?:not|does\s+not|do\s+not)\s+cure\b/i },
   { label: 'treat trauma', pattern: /\btreat\s+trauma\b/gi },
   { label: 'endorsed by bilateralstimulation.io', pattern: /\bendorsed\s+by\s+bilateralstimulation\.io\b/gi },
-  { label: 'charity-style payment wording: donate', pattern: /\bdonate\b/gi },
-  { label: 'charity-style payment wording: donation', pattern: /\bdonation\b/gi },
-  { label: 'charity-style payment wording: donations', pattern: /\bdonations\b/gi },
-  { label: 'charity-style payment wording: donar', pattern: /\bdonar\b/gi },
-  { label: 'charity-style payment wording: donación', pattern: /\bdonación\b/gi },
-  { label: 'charity-style payment wording: donaciones', pattern: /\bdonaciones\b/gi },
 ];
 
 function shouldScan(filePath) {

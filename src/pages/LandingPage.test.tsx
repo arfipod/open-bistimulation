@@ -35,12 +35,12 @@ describe('LandingPage', () => {
   });
 
 
-  it('renders visible public product and payment clarification content', () => {
+  it('renders visible public product and legal clarification content', () => {
     renderWithI18n(<LandingPage />);
 
     expect(screen.getByRole('heading', { name: 'What this tool provides' })).toBeInTheDocument();
     expect(screen.getByText(/Open Bistimulation is free independent software for browser-based bilateral sensory cues/)).toBeInTheDocument();
-    expect(screen.getByText(/Optional tips support independent development and maintenance only/)).toBeInTheDocument();
+    expect(screen.getByText(/It is supplied without professional services, medical services, warranties, or outcome guarantees/)).toBeInTheDocument();
   });
 
   it('creates sessions from local/default preferences and shows backend errors', async () => {

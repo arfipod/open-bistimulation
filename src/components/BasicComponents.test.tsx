@@ -6,7 +6,6 @@ import { AppHeader } from './AppHeader';
 import { ConnectionBadge } from './ConnectionBadge';
 import { ErrorView } from './ErrorView';
 import { InviteClient } from './InviteClient';
-import { KoFiWidget } from './KoFiWidget';
 import { LanguageToggle } from './LanguageToggle';
 import { LoadingView } from './LoadingView';
 
@@ -36,11 +35,10 @@ describe('basic components', () => {
     expect(screen.getByRole('button', { name: 'Cambiar idioma a inglés' })).toHaveTextContent('ES');
   });
 
-  it('renders footer, support widget, loading view, connection badges, and error view', () => {
+  it('renders footer, loading view, connection badges, and error view', () => {
     renderWithI18n(
       <>
         <AppFooter />
-        <KoFiWidget />
         <LoadingView />
         <ConnectionBadge connected={false} label="Offline" />
         <ErrorView message="Broken link" />
@@ -50,7 +48,6 @@ describe('basic components', () => {
     expect(screen.getByText('Open Bistimulation is independent open-source software.')).toBeInTheDocument();
     expect(screen.getByText('Made with 💙 by arrf - laus deo virginique matri')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Legal' })).toHaveAttribute('href', '/legal');
-    expect(screen.getByRole('link', { name: 'Leave an optional tip to support independent development' })).toHaveAttribute('href', 'https://ko-fi.com/anrubiof');
     expect(screen.getByText('Loading...')).toBeInTheDocument();
     expect(screen.getByText('Offline')).toHaveClass('is-disconnected');
     expect(screen.getByText('Could not open the session')).toBeInTheDocument();
