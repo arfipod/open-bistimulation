@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { getMotionElapsedMs, getServerNowMs, getStimulusPosition } from '../domain/motion';
+import { getMotionSnapshot, getServerNowMs, getStimulusPosition } from '../domain/motion';
 import type { SessionState } from '../domain/sessionTypes';
+import { getVisualStimulusContent } from '../domain/visualStimuli';
 
 interface StimulusStageProps {
   state: SessionState;
@@ -24,14 +25,19 @@ export function StimulusStage({ state, serverTimeOffsetMs, className = '', label
       if (stage && dot) {
         const rect = stage.getBoundingClientRect();
         const nowMs = getServerNowMs(serverTimeOffsetMs);
-        const elapsedMs = getMotionElapsedMs(state, nowMs);
-        const position = getStimulusPosition(state.visual, elapsedMs, rect.width, rect.height);
+        const snapshot = getMotionSnapshot(state, nowMs);
+        const position = getStimulusPosition(state.visual, snapshot.elapsedMs, rect.width, rect.height);
         const dotSize = state.visual.dotSize;
+        const stimulusContent = getVisualStimulusContent(state.visual, snapshot.side);
+
         dot.style.width = `${dotSize}px`;
         dot.style.height = `${dotSize}px`;
-        dot.style.backgroundColor = state.visual.color;
+        dot.style.backgroundColor = stimulusContent ? 'transparent' : state.visual.color;
+        dot.style.fontSize = `${Math.round(dotSize * 0.92)}px`;
         dot.style.opacity = state.visual.enabled ? '1' : '0';
         dot.style.transform = `translate3d(${position.x - dotSize / 2}px, ${position.y - dotSize / 2}px, 0)`;
+        dot.textContent = stimulusContent ?? '';
+        dot.classList.toggle('is-emoji', Boolean(stimulusContent));
       }
 
       if (!cancelled) {

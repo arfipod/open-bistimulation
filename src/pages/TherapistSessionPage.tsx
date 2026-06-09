@@ -54,6 +54,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   const [roundDurationMs, setRoundDurationMs] = useState<number | null>(DEFAULT_ROUND_DURATION_MS);
   const [clientJoyConStatus, setClientJoyConStatus] = useState<JoyConClientStatus>(EMPTY_CLIENT_JOYCON_STATUS);
   const autoStopStartedRef = useRef(false);
+  const stateRef = useRef<SessionState | null>(null);
 
   const clock = useServerClock();
   const renderTick = useTicker(1000);
@@ -65,13 +66,35 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
       return;
     }
 
+    if (message.kind === 'CLIENT_LEFT') {
+      setClientLastSeenAtMs(null);
+      setClientJoyConStatus(EMPTY_CLIENT_JOYCON_STATUS);
+      return;
+    }
+
     if (message.kind === 'JOYCON_STATUS') {
       setClientLastSeenAtMs(Date.now());
       setClientJoyConStatus(message.status);
     }
   }, []);
 
-  const { status: realtimeStatus, send } = useSessionRealtime({ sessionId, onMessage: handleMessage });
+  const handleClientPresenceChange = useCallback((connected: boolean) => {
+    setClientLastSeenAtMs(connected ? Date.now() : null);
+    if (!connected) {
+      setClientJoyConStatus(EMPTY_CLIENT_JOYCON_STATUS);
+    }
+  }, []);
+
+  const { status: realtimeStatus, send } = useSessionRealtime({
+    sessionId,
+    role: 'therapist',
+    onMessage: handleMessage,
+    onClientPresenceChange: handleClientPresenceChange,
+  });
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     if (!token) {
@@ -95,6 +118,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
           return;
         }
 
+        stateRef.current = session.state;
         setState(session.state);
         setClientToken(session.clientToken ?? null);
       } catch (nextError) {
@@ -117,6 +141,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
         return;
       }
 
+      stateRef.current = nextState;
       setState(nextState);
       await send({ kind: 'STATE_UPDATED', state: nextState, emittedAtMs: getServerNowMs(clock.offsetMs) });
       await saveTherapistState(sessionId, token, nextState);
@@ -126,16 +151,18 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
 
   const patchState = useCallback(
     (recipe: (current: SessionState) => SessionState) => {
-      if (!state) {
+      const currentState = stateRef.current;
+
+      if (!currentState) {
         return;
       }
 
-      const nextState = recipe(state);
+      const nextState = recipe(currentState);
       void commitState({ ...nextState, version: nextState.version + 1 }).catch((nextError) => {
         setError(nextError instanceof Error ? nextError.message : t('session.saveStateError'));
       });
     },
-    [commitState, state, t],
+    [commitState, t],
   );
 
   useAudioBls({ state: state ?? undefinedState, serverTimeOffsetMs: clock.offsetMs, unlocked: audioUnlocked, role: 'therapist' });
@@ -283,6 +310,8 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
     }
   };
 
+  const roundInProgress = state.status === 'running' || state.status === 'stopping';
+
   return (
     <main className="therapist-page">
       <AppHeader
@@ -308,21 +337,30 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
           <VisualPanel
             visual={state.visual}
             onChange={(visual) => patchState((current) => retimeMotionForVisualChange(current, visual, getServerNowMs(clock.offsetMs)))}
+            panelCollapsible
+            autoCollapse={roundInProgress && !state.visual.enabled}
           />
         </div>
 
         <div className="middle-column">
-          <AuditoryPanel audio={state.audio} onChange={(audio) => patchState((current) => ({ ...current, audio }))} />
+          <AuditoryPanel
+            audio={state.audio}
+            onChange={(audio) => patchState((current) => ({ ...current, audio }))}
+            panelCollapsible
+            autoCollapse={roundInProgress && !state.audio.enabled}
+          />
           <button className="secondary-button full-width" type="button" onClick={() => setAudioUnlocked(true)}>
             {audioUnlocked ? t('session.localAudioEnabled') : t('session.enableLocalAudio')}
           </button>
-          <ClientPreview state={state} serverTimeOffsetMs={clock.offsetMs} />
+          <ClientPreview state={state} serverTimeOffsetMs={clock.offsetMs} panelCollapsible autoCollapse={state.status === 'running'} />
         </div>
 
         <div className="right-column">
           <TactilePanel
             tactile={state.tactile}
             onChange={(tactile) => patchState((current) => ({ ...current, tactile }))}
+            panelCollapsible
+            autoCollapse={roundInProgress && !state.tactile.enabled}
             webHidSupported={clientJoyConStatus.webHidSupported}
             requestingDevices={clientJoyConStatus.requestingDevices}
             devices={clientJoyConStatus.devices}
@@ -352,6 +390,8 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
             roundDurationMs={roundDurationMs}
             onRoundDurationChange={setRoundDurationMs}
             busy={busy}
+            panelCollapsible
+            autoCollapse={state.status === 'running'}
           />
           {clock.error ? <div className="warning-box">{t('session.serverClock')}: {clock.error}</div> : null}
           {notice ? <div className="success-box">{notice}</div> : null}
@@ -373,6 +413,7 @@ const undefinedState: SessionState = {
   visual: {
     enabled: false,
     color: '#0500a8',
+    stimulus: 'dot',
     background: '#c9ced1',
     dotSize: 52,
     speed: 5,

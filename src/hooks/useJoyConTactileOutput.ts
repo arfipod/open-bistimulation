@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TACTILE_INTERNAL_PAUSE_MS } from '../domain/defaults';
 import { getMotionSnapshot, getServerNowMs } from '../domain/motion';
-import type { JoyConOutputStatus, SessionState } from '../domain/sessionTypes';
+import type { JoyConOutputStatus, SessionState, TactileSide } from '../domain/sessionTypes';
 import type { JoyConIntensity } from '../lib/joyconTypes';
 import { neutralJoyCon, pulseJoyCon } from '../lib/joyconWebHidClient';
 
@@ -36,8 +36,8 @@ export function useJoyConTactileOutput({
   const mountedRef = useRef(false);
   const wasActiveRef = useRef(false);
   const lastHalfCycleRef = useRef<number | null>(null);
-  const lastPulseStartedAtRef = useRef<number | null>(null);
-  const pulseInFlightRef = useRef(false);
+  const lastPulseStartedAtRef = useRef<Record<TactileSide, number | null>>({ left: null, right: null });
+  const pulseInFlightRef = useRef<Record<TactileSide, boolean>>({ left: false, right: false });
   const neutralInFlightRef = useRef(false);
   const pulseCountRef = useRef(0);
   const skippedPulseCountRef = useRef(0);
@@ -73,7 +73,8 @@ export function useJoyConTactileOutput({
 
   const resetTimingRefs = useCallback(() => {
     lastHalfCycleRef.current = null;
-    lastPulseStartedAtRef.current = null;
+    lastPulseStartedAtRef.current = { left: null, right: null };
+    pulseInFlightRef.current = { left: false, right: false };
   }, []);
 
   const sendNeutral = useCallback(
@@ -147,18 +148,18 @@ export function useJoyConTactileOutput({
         lastHalfCycleRef.current = snapshot.halfCycleIndex;
 
         const minSpacingMs = state.tactile.pulseDurationMs + TACTILE_INTERNAL_PAUSE_MS;
-        const lastPulseStartedAt = lastPulseStartedAtRef.current;
+        const side = snapshot.side;
+        const lastPulseStartedAt = lastPulseStartedAtRef.current[side];
         const isInsideGap = lastPulseStartedAt !== null && nowMs - lastPulseStartedAt < minSpacingMs;
 
-        if (pulseInFlightRef.current || isInsideGap) {
+        if (pulseInFlightRef.current[side] || isInsideGap) {
           recordSkippedPulse();
         } else {
-          lastPulseStartedAtRef.current = nowMs;
-          pulseInFlightRef.current = true;
+          lastPulseStartedAtRef.current[side] = nowMs;
+          pulseInFlightRef.current[side] = true;
           pulseCountRef.current += 1;
 
           const pulseCount = pulseCountRef.current;
-          const side = snapshot.side;
 
           updateStatus((current) => ({
             ...current,
@@ -176,7 +177,7 @@ export function useJoyConTactileOutput({
           })
             .catch(recordError)
             .finally(() => {
-              pulseInFlightRef.current = false;
+              pulseInFlightRef.current[side] = false;
             });
         }
       }

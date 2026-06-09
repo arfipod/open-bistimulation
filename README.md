@@ -10,11 +10,11 @@ Open Bistimulation is not affiliated with, endorsed by, sponsored by, or connect
 
 - Controller page for cue settings, timing, session status, and participant invitation links.
 - Participant page for visual and audio cues that work directly in the browser.
-- Optional Joy-Con tactile settings can run directly from the controller browser through WebHID.
+- Optional Joy-Con tactile output can run directly from the participant browser through WebHID.
 - English and Spanish UI copy.
 - Supabase RPC and Realtime backend with RLS denying direct anon table access.
 
-The app is hosted normally on Vercel as a browser frontend. Visual, audio, and Joy-Con tactile cues run from the controller browser. Joy-Con tactile output uses WebHID, so no local bridge process is required for the Vercel app or the local Vite app. The legacy `node-hid` scripts remain available for CLI diagnostics.
+The app is hosted normally on Vercel as a browser frontend. Visual and audio cues run in the participant browser, and optional Joy-Con tactile output also runs in the participant browser through WebHID. No local bridge process is required for the Vercel app or the local Vite app. The legacy `node-hid` scripts remain available for CLI diagnostics.
 
 ## Local Setup
 
@@ -43,7 +43,16 @@ The Vercel/Supabase aliases `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE
 
 ## Browser Joy-Con WebHID
 
-Pair both Joy-Cons over Bluetooth first, then open the controller page in a browser with WebHID support. In the tactile panel, use `Add Joy-Cons` and select each controller from the browser device prompt. The app sends rumble reports directly from `navigator.hid`; Supabase does not register tactile devices or store Joy-Con device metadata, and Supabase Realtime is not used for hardware output.
+Pair both Joy-Cons over Bluetooth first, then open the participant link in a browser with WebHID support. In the tactile panel, use `Add Joy-Cons` and select each controller from the browser device prompt. The app sends rumble reports directly from `navigator.hid`; Supabase does not register tactile devices or store Joy-Con device metadata, and Supabase Realtime is not used for hardware output.
+
+Quick flow:
+
+1. Pair the left and right Joy-Con with the participant computer over Bluetooth.
+2. Open the participant link in Chrome or Edge over HTTPS or localhost.
+3. Use `Add Joy-Cons` in the participant tactile panel and approve the browser prompt.
+4. Select both Joy-Cons. If the browser asks once per controller, repeat `Add Joy-Cons`.
+5. Test left, right, and both sides before starting a round.
+6. Keep the participant tab open, awake, and visible while tactile output is enabled.
 
 See [docs/TACTILE_MOBILE.md](docs/TACTILE_MOBILE.md) for the current browser flow. See [docs/joycon-bridge.md](docs/joycon-bridge.md) only if you want the legacy local bridge or CLI diagnostics.
 

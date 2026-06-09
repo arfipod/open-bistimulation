@@ -150,7 +150,7 @@ describe('ClientSessionPage', () => {
     expect(mocks.requestJoyConDevices).toHaveBeenCalledTimes(1);
   });
 
-  it('expands the tactile panel the first time the controller enables tactile output', async () => {
+  it('shows the collapsed tactile panel the first time the controller enables tactile output', async () => {
     mocks.getBlsSession.mockResolvedValue({ state: makeState({ tactile: { ...DEFAULT_SESSION_STATE.tactile, enabled: false } }) });
 
     renderWithI18n(<ClientSessionPage sessionId="session-id" token="client-token" />);
@@ -166,6 +166,9 @@ describe('ClientSessionPage', () => {
       });
     });
 
+    expect(screen.getByRole('button', { name: 'Expand tactile panel' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand tactile panel' }));
     expect(screen.getByRole('button', { name: 'Add Joy-Cons' })).toBeInTheDocument();
   });
 

@@ -3,6 +3,7 @@ export type SessionStatus = 'idle' | 'running' | 'paused' | 'stopping' | 'stoppe
 export type VisualDirection = 'horizontal' | 'vertical' | 'diagonal' | 'diagonal-down' | 'diagonal-up' | 'infinity';
 export type MotionOrder = 'left-to-right' | 'right-to-left' | 'random';
 export type VerticalPosition = 'top' | 'center' | 'bottom';
+export type VisualStimulus = 'dot' | 'dog' | 'flower' | 'sun' | 'star' | 'heart' | 'smile';
 export type AudioSound = 'snap' | 'beep' | 'bell' | 'heartbeat';
 export type TactileSide = 'left' | 'right';
 export type TactileIntensity = 'low' | 'medium' | 'high';
@@ -10,6 +11,7 @@ export type TactileIntensity = 'low' | 'medium' | 'high';
 export interface VisualSettings {
   enabled: boolean;
   color: string;
+  stimulus?: VisualStimulus;
   background: string;
   dotSize: number;
   speed: number;
@@ -124,6 +126,10 @@ export type SessionBroadcastMessage =
   | {
       kind: 'JOYCON_STATUS';
       status: JoyConClientStatus;
+      emittedAtMs: number;
+    }
+  | {
+      kind: 'CLIENT_LEFT';
       emittedAtMs: number;
     }
   | {

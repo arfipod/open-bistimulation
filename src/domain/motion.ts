@@ -149,8 +149,14 @@ function getOrderedGlide(elapsedMs: number, cycleMs: number, motionOrder: Motion
   const progress = clamp((elapsedMs - segmentStartMs) / halfCycleMs, 0, 1);
   const from = glideForSide(targetSideForSegment(segmentIndex - 1, motionOrder));
   const to = glideForSide(targetSideForSegment(segmentIndex, motionOrder));
+  const easedProgress = smoothStep(progress);
 
-  return from + (to - from) * progress;
+  return from + (to - from) * easedProgress;
+}
+
+function smoothStep(progress: number): number {
+  const safeProgress = clamp(progress, 0, 1);
+  return safeProgress * safeProgress * (3 - 2 * safeProgress);
 }
 
 function getStoppingMotionElapsedMs(state: SessionState, nowMs: number): number {

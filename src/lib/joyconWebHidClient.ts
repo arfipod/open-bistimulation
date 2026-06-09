@@ -374,24 +374,26 @@ export async function pulseJoyCon(options: PulseJoyConOptions): Promise<JoyConCo
   const pulseOptions = normalizePulseOptions(options);
   const events: JoyConEvent[] = [];
 
-  for (const target of targets) {
-    await ensureOpen(target, events);
-    await enableVibration(target, events);
+  await Promise.all(
+    targets.map(async (target) => {
+      await ensureOpen(target, events);
+      await enableVibration(target, events);
 
-    for (let index = 0; index < pulseOptions.repeats; index += 1) {
-      emit(events, 'pulse', {
-        side: classifyJoyConDevice(target),
-        repeat: index + 1,
-        repeats: pulseOptions.repeats,
-        intensity: pulseOptions.intensity,
-        durationMs: pulseOptions.durationMs,
-      });
-      await neutralAfterPulse(target, events, async () => {
-        await streamRumble(target, pulseOptions.intensity, pulseOptions.durationMs, events);
-      });
-      await sleep(180);
-    }
-  }
+      for (let index = 0; index < pulseOptions.repeats; index += 1) {
+        emit(events, 'pulse', {
+          side: classifyJoyConDevice(target),
+          repeat: index + 1,
+          repeats: pulseOptions.repeats,
+          intensity: pulseOptions.intensity,
+          durationMs: pulseOptions.durationMs,
+        });
+        await neutralAfterPulse(target, events, async () => {
+          await streamRumble(target, pulseOptions.intensity, pulseOptions.durationMs, events);
+        });
+        await sleep(60);
+      }
+    }),
+  );
 
   return { ok: true, events };
 }

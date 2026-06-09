@@ -198,7 +198,7 @@ describe('useJoyConTactileOutput', () => {
     expect(mocks.pulseJoyCon).toHaveBeenCalledWith(expect.objectContaining({ side: 'left' }));
   });
 
-  it('skips half-cycle pulses while a previous pulse request is still in flight', async () => {
+  it('skips same-side half-cycle pulses while a previous request for that side is still in flight', async () => {
     let now = 0;
     vi.spyOn(Date, 'now').mockImplementation(() => now);
     const raf = installRaf();
@@ -217,8 +217,14 @@ describe('useJoyConTactileOutput', () => {
     now = 700;
     act(() => raf.runNext());
 
+    await waitFor(() => expect(mocks.pulseJoyCon).toHaveBeenCalledTimes(2));
+    expect(result.current.skippedPulseCount).toBe(0);
+
+    now = 1100;
+    act(() => raf.runNext());
+
     await waitFor(() => expect(result.current.skippedPulseCount).toBe(1));
-    expect(mocks.pulseJoyCon).toHaveBeenCalledTimes(1);
+    expect(mocks.pulseJoyCon).toHaveBeenCalledTimes(2);
 
     await act(async () => {
       pulse.resolve({ ok: true, events: [] });
