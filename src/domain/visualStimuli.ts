@@ -40,6 +40,10 @@ export function getVisualStimulusContent(visual: VisualSettings, side: TactileSi
     return null;
   }
 
+  if (visual.stimulusAlternatesSides === false) {
+    return preset.preview;
+  }
+
   return side === 'right' ? preset.forward : preset.reverse;
 }
 

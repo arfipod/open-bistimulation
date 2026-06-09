@@ -12,6 +12,7 @@ export interface VisualSettings {
   enabled: boolean;
   color: string;
   stimulus?: VisualStimulus;
+  stimulusAlternatesSides?: boolean;
   background: string;
   dotSize: number;
   speed: number;

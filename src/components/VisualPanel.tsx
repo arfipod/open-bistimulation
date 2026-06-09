@@ -54,6 +54,8 @@ export function VisualPanel({
   const selectedDirection = visual.direction === 'diagonal' ? 'diagonal-down' : visual.direction;
   const selectedMotionOrder = visual.motionOrder ?? 'left-to-right';
   const selectedStimulus = visual.stimulus ?? 'dot';
+  const canAlternateStimulusSides = selectedStimulus !== 'dot';
+  const stimulusAlternatesSides = visual.stimulusAlternatesSides ?? true;
   const [panelCollapsed, setPanelCollapsed] = useState(Boolean(panelCollapsible && (defaultPanelCollapsed || autoCollapse)));
 
   useEffect(() => {
@@ -154,6 +156,16 @@ export function VisualPanel({
           ))}
         </div>
         <p className="panel-note compact-note">{t('visual.stimulusHint')}</p>
+        {canAlternateStimulusSides ? (
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={stimulusAlternatesSides}
+              onChange={(event) => onChange({ ...visual, stimulusAlternatesSides: event.target.checked })}
+            />
+            {t('visual.stimulusAlternateSides')}
+          </label>
+        ) : null}
       </div>
 
       <div className="field-group">

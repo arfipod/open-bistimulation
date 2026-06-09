@@ -414,6 +414,7 @@ const undefinedState: SessionState = {
     enabled: false,
     color: '#0500a8',
     stimulus: 'dot',
+    stimulusAlternatesSides: true,
     background: '#c9ced1',
     dotSize: 52,
     speed: 5,

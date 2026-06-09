@@ -23,6 +23,9 @@ describe('VisualPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Background #111827' }));
     expect(onChange).toHaveBeenLastCalledWith({ ...visual, background: '#111827' });
 
+    fireEvent.click(screen.getByRole('button', { name: 'Stimulus: Dog' }));
+    expect(onChange).toHaveBeenLastCalledWith({ ...visual, stimulus: 'dog' });
+
     fireEvent.change(screen.getByLabelText('Speed: 5'), { target: { value: '12' } });
     expect(onChange).toHaveBeenLastCalledWith({ ...visual, speed: 12 });
 
@@ -37,6 +40,16 @@ describe('VisualPanel', () => {
 
     fireEvent.change(screen.getByLabelText('Size: 52px'), { target: { value: '80' } });
     expect(onChange).toHaveBeenLastCalledWith({ ...visual, dotSize: 80 });
+  });
+
+  it('updates whether emoji stimuli alternate sides', () => {
+    const visual: VisualSettings = { ...DEFAULT_SESSION_STATE.visual, stimulus: 'dog', stimulusAlternatesSides: true };
+    const onChange = vi.fn();
+
+    renderWithI18n(<VisualPanel visual={visual} onChange={onChange} />);
+
+    fireEvent.click(screen.getByLabelText('Use different emoji for left and right'));
+    expect(onChange).toHaveBeenLastCalledWith({ ...visual, stimulusAlternatesSides: false });
   });
 
   it('treats legacy diagonal direction as diagonal down in the selected control', () => {

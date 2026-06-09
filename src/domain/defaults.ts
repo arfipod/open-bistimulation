@@ -16,6 +16,7 @@ export const DEFAULT_SESSION_STATE: SessionState = {
     enabled: true,
     color: '#0500a8',
     stimulus: DEFAULT_VISUAL_STIMULUS,
+    stimulusAlternatesSides: true,
     background: '#c9ced1',
     dotSize: 52,
     speed: 5,
