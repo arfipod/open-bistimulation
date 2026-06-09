@@ -502,6 +502,9 @@ html:fullscreen .app-shell-client .app-footer {
   gap: 12px;
 }
 
+.control-panel.is-collapsed .panel-header,
+.client-preview.is-collapsed .panel-header,
+.session-controls.is-collapsed .panel-header,
 .tactile-panel.is-collapsed .panel-header {
   margin-bottom: 0;
 }
@@ -579,6 +582,51 @@ html:fullscreen .app-shell-client .app-footer {
   display: grid;
   gap: 8px;
   margin-top: 16px;
+}
+
+.stimulus-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stimulus-option {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  min-height: 70px;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #111827;
+  font-weight: 900;
+}
+
+.stimulus-option span {
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.stimulus-option small {
+  color: #334155;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.stimulus-option.is-selected {
+  color: white;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.stimulus-option.is-selected small {
+  color: white;
+}
+
+.compact-note {
+  margin: 0;
+  font-size: 0.84rem;
 }
 
 .field-group label,
@@ -757,6 +805,31 @@ input[type='range'] {
 .panel-note {
   color: var(--muted);
   line-height: 1.45;
+}
+
+.joycon-instructions {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.joycon-instructions summary {
+  color: #111827;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.joycon-instructions ol {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.joycon-instructions li + li {
+  margin-top: 6px;
 }
 
 .tactile-status-block {
@@ -1095,9 +1168,21 @@ input[type='range'] {
   position: absolute;
   top: 0;
   left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   will-change: transform;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+  line-height: 1;
+  user-select: none;
+  transition: background-color 120ms ease;
+}
+
+.stimulus-dot.is-emoji {
+  border-radius: 0;
+  box-shadow: none;
+  text-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
 }
 
 .stage-label {
@@ -1228,5 +1313,9 @@ input[type='range'] {
 
   .client-topbar > * {
     flex: 1 1 auto;
+  }
+
+  .stimulus-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

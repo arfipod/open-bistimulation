@@ -1,4 +1,5 @@
 import type { SessionPreferences, SessionState } from './sessionTypes';
+import { DEFAULT_VISUAL_STIMULUS } from './visualStimuli';
 
 export const TACTILE_INTERNAL_PAUSE_MS = 40;
 
@@ -14,6 +15,7 @@ export const DEFAULT_SESSION_STATE: SessionState = {
   visual: {
     enabled: true,
     color: '#0500a8',
+    stimulus: DEFAULT_VISUAL_STIMULUS,
     background: '#c9ced1',
     dotSize: 52,
     speed: 5,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { formatElapsedTime, getElapsedMs, getServerNowMs } from '../domain/motion';
 import type { SessionState } from '../domain/sessionTypes';
 import { useTicker } from '../hooks/useTicker';
@@ -10,6 +10,9 @@ interface SessionControlsProps {
   roundDurationMs: number | null;
   onRoundDurationChange: (durationMs: number | null) => void;
   busy?: boolean;
+  panelCollapsible?: boolean;
+  defaultPanelCollapsed?: boolean;
+  autoCollapse?: boolean;
 }
 
 interface SessionControlActionsProps {
@@ -34,9 +37,14 @@ export function SessionControls({
   roundDurationMs,
   onRoundDurationChange,
   busy = false,
+  panelCollapsible = false,
+  defaultPanelCollapsed = false,
+  autoCollapse = false,
 }: SessionControlsProps) {
   const { t } = useI18n();
+  const panelBodyId = useId();
   const [durationDraft, setDurationDraft] = useState(() => formatRoundDuration(roundDurationMs, t('controls.free')));
+  const [panelCollapsed, setPanelCollapsed] = useState(Boolean(panelCollapsible && (defaultPanelCollapsed || autoCollapse)));
   useTicker(250);
   const controlsDisabled = busy || state.status === 'stopping';
   const elapsedMs = getElapsedMs(state, getServerNowMs(serverTimeOffsetMs));
@@ -45,6 +53,12 @@ export function SessionControls({
   useEffect(() => {
     setDurationDraft(formatRoundDuration(roundDurationMs, t('controls.free')));
   }, [roundDurationMs, t]);
+
+  useEffect(() => {
+    if (panelCollapsible) {
+      setPanelCollapsed(Boolean(defaultPanelCollapsed || autoCollapse));
+    }
+  }, [autoCollapse, defaultPanelCollapsed, panelCollapsible]);
 
   const setDuration = (durationMs: number) => {
     const nextDuration = Math.min(MAX_ROUND_DURATION_MS, Math.max(MIN_ROUND_DURATION_MS, durationMs));
@@ -73,8 +87,24 @@ export function SessionControls({
   };
 
   return (
-    <section className="session-controls panel">
-      <div className="round-timer">
+    <section className={`session-controls panel ${panelCollapsed ? 'is-collapsed' : ''}`}>
+      <header className="panel-header">
+        <h2>{t('controls.roundDuration')}</h2>
+        {panelCollapsible ? (
+          <button
+            className="collapse-toggle-button"
+            type="button"
+            aria-expanded={!panelCollapsed}
+            aria-controls={panelBodyId}
+            aria-label={panelCollapsed ? t('common.expandPanel') : t('common.collapsePanel')}
+            onClick={() => setPanelCollapsed((collapsed) => !collapsed)}
+          >
+            <CollapseGlyph collapsed={panelCollapsed} />
+          </button>
+        ) : null}
+      </header>
+      {!panelCollapsed ? (
+      <div id={panelBodyId} className="round-timer">
         <div className="round-timer-display">
           <span>{t('controls.roundDuration')}</span>
           <input
@@ -140,6 +170,7 @@ export function SessionControls({
           ))}
         </div>
       </div>
+      ) : null}
     </section>
   );
 }
@@ -222,4 +253,12 @@ function parseDurationInput(value: string, freeLabel: string): number | 'free' |
   }
 
   return (minutes * 60 + seconds) * 1000;
+}
+
+function CollapseGlyph({ collapsed }: { collapsed: boolean }) {
+  return (
+    <span className={`collapse-glyph ${collapsed ? 'is-collapsed' : ''}`} aria-hidden="true">
+      {collapsed ? '+' : '-'}
+    </span>
+  );
 }

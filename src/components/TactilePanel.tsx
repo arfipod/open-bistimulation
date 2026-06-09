@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { TactileSettings } from '../domain/sessionTypes';
 import type { JoyConTactileOutputStatus } from '../hooks/useJoyConTactileOutput';
 import type { JoyConBatterySummary, JoyConDeviceSummary, JoyConIntensity, JoyConSide } from '../lib/joyconTypes';
@@ -17,6 +17,7 @@ interface TactilePanelProps {
   outputStatus: JoyConTactileOutputStatus;
   panelCollapsible?: boolean;
   defaultPanelCollapsed?: boolean;
+  autoCollapse?: boolean;
   deviceStatusCollapsible?: boolean;
   defaultDeviceStatusCollapsed?: boolean;
   onRequestDevices?: () => void;
@@ -98,6 +99,7 @@ export function TactilePanel({
   outputStatus,
   panelCollapsible = false,
   defaultPanelCollapsed = false,
+  autoCollapse = false,
   deviceStatusCollapsible = false,
   defaultDeviceStatusCollapsed = false,
   onRequestDevices,
@@ -108,7 +110,7 @@ export function TactilePanel({
   const { t } = useI18n();
   const panelBodyId = useId();
   const deviceStatusId = useId();
-  const [panelCollapsed, setPanelCollapsed] = useState(defaultPanelCollapsed);
+  const [panelCollapsed, setPanelCollapsed] = useState(Boolean(defaultPanelCollapsed || autoCollapse));
   const [deviceStatusCollapsed, setDeviceStatusCollapsed] = useState(defaultDeviceStatusCollapsed);
 
   const leftDevice = findDevice(devices, 'left');
@@ -118,6 +120,12 @@ export function TactilePanel({
   const intensity = tactile.intensity ?? 'medium';
   const settingsEditable = Boolean(onChange);
   const showDeviceActions = Boolean(onRequestDevices || onDisconnectDevices || onRefresh || onTestPulse);
+
+  useEffect(() => {
+    if (panelCollapsible) {
+      setPanelCollapsed(Boolean(defaultPanelCollapsed || autoCollapse));
+    }
+  }, [autoCollapse, defaultPanelCollapsed, panelCollapsible]);
 
   const testSide = (side: JoyConSide) => {
     onTestPulse?.({ side, intensity, duration: tactile.pulseDurationMs, repeats: 1 });
@@ -229,6 +237,18 @@ export function TactilePanel({
       {!panelCollapsed ? (
         <div id={panelBodyId} className="tactile-panel-body">
           <p className="panel-note">{t('tactile.webHidRequirement')}</p>
+
+          <details className="joycon-instructions" open={!anyConnected}>
+            <summary>{t('tactile.instructionsTitle')}</summary>
+            <ol>
+              <li>{t('tactile.instructions.pairBluetooth')}</li>
+              <li>{t('tactile.instructions.openParticipant')}</li>
+              <li>{t('tactile.instructions.addJoyCons')}</li>
+              <li>{t('tactile.instructions.selectBoth')}</li>
+              <li>{t('tactile.instructions.testBoth')}</li>
+              <li>{t('tactile.instructions.keepTabOpen')}</li>
+            </ol>
+          </details>
 
           {deviceStatus}
 

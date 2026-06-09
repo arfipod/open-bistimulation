@@ -1,10 +1,15 @@
+import { useEffect, useId, useState } from 'react';
 import { BACKGROUND_COLORS, VISUAL_COLORS } from '../domain/defaults';
 import type { MotionOrder, VisualDirection, VisualSettings, VerticalPosition } from '../domain/sessionTypes';
+import { VISUAL_STIMULI } from '../domain/visualStimuli';
 import { useI18n } from '../lib/i18n';
 
 interface VisualPanelProps {
   visual: VisualSettings;
   onChange: (next: VisualSettings) => void;
+  panelCollapsible?: boolean;
+  defaultPanelCollapsed?: boolean;
+  autoCollapse?: boolean;
 }
 
 type DirectionLabelKey =
@@ -37,24 +42,56 @@ const positions: Array<{ value: VerticalPosition; labelKey: 'visual.top' | 'visu
   { value: 'bottom', labelKey: 'visual.bottom' },
 ];
 
-export function VisualPanel({ visual, onChange }: VisualPanelProps) {
+export function VisualPanel({
+  visual,
+  onChange,
+  panelCollapsible = false,
+  defaultPanelCollapsed = false,
+  autoCollapse = false,
+}: VisualPanelProps) {
   const { t } = useI18n();
+  const panelBodyId = useId();
   const selectedDirection = visual.direction === 'diagonal' ? 'diagonal-down' : visual.direction;
   const selectedMotionOrder = visual.motionOrder ?? 'left-to-right';
+  const selectedStimulus = visual.stimulus ?? 'dot';
+  const [panelCollapsed, setPanelCollapsed] = useState(Boolean(panelCollapsible && (defaultPanelCollapsed || autoCollapse)));
+
+  useEffect(() => {
+    if (panelCollapsible) {
+      setPanelCollapsed(Boolean(defaultPanelCollapsed || autoCollapse));
+    }
+  }, [autoCollapse, defaultPanelCollapsed, panelCollapsible]);
 
   return (
-    <section className="control-panel">
+    <section className={`control-panel ${panelCollapsed ? 'is-collapsed' : ''}`}>
       <header className="panel-header">
         <h2>{t('visual.title')}</h2>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={visual.enabled}
-            onChange={(event) => onChange({ ...visual, enabled: event.target.checked })}
-          />
-          <span />
-        </label>
+        <div className="panel-header-actions">
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={visual.enabled}
+              onChange={(event) => onChange({ ...visual, enabled: event.target.checked })}
+            />
+            <span />
+          </label>
+          {panelCollapsible ? (
+            <button
+              className="collapse-toggle-button"
+              type="button"
+              aria-expanded={!panelCollapsed}
+              aria-controls={panelBodyId}
+              aria-label={panelCollapsed ? t('common.expandPanel') : t('common.collapsePanel')}
+              onClick={() => setPanelCollapsed((collapsed) => !collapsed)}
+            >
+              <CollapseGlyph collapsed={panelCollapsed} />
+            </button>
+          ) : null}
+        </div>
       </header>
+
+      {!panelCollapsed ? (
+        <div id={panelBodyId} className="panel-body">
 
       <div className="field-group">
         <label>{t('visual.color')}</label>
@@ -98,6 +135,25 @@ export function VisualPanel({ visual, onChange }: VisualPanelProps) {
             onChange={(event) => onChange({ ...visual, background: event.target.value })}
           />
         </div>
+      </div>
+
+      <div className="field-group">
+        <label>{t('visual.stimulus')}</label>
+        <div className="stimulus-grid">
+          {VISUAL_STIMULI.map((stimulus) => (
+            <button
+              key={stimulus.value}
+              type="button"
+              className={`stimulus-option ${selectedStimulus === stimulus.value ? 'is-selected' : ''}`}
+              aria-label={`${t('visual.stimulus')}: ${t(stimulus.labelKey)}`}
+              onClick={() => onChange({ ...visual, stimulus: stimulus.value })}
+            >
+              <span aria-hidden="true">{stimulus.preview}</span>
+              <small>{t(stimulus.labelKey)}</small>
+            </button>
+          ))}
+        </div>
+        <p className="panel-note compact-note">{t('visual.stimulusHint')}</p>
       </div>
 
       <div className="field-group">
@@ -176,7 +232,17 @@ export function VisualPanel({ visual, onChange }: VisualPanelProps) {
           onChange={(event) => onChange({ ...visual, dotSize: Number(event.target.value) })}
         />
       </div>
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+function CollapseGlyph({ collapsed }: { collapsed: boolean }) {
+  return (
+    <span className={`collapse-glyph ${collapsed ? 'is-collapsed' : ''}`} aria-hidden="true">
+      {collapsed ? '+' : '-'}
+    </span>
   );
 }
 

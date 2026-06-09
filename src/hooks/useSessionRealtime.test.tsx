@@ -7,10 +7,16 @@ type StatusCallback = (status: 'SUBSCRIBED' | 'CHANNEL_ERROR' | 'TIMED_OUT' | 'C
 
 function makeChannel() {
   let broadcastHandler: ((event: { payload: SessionBroadcastMessage }) => void) | null = null;
+  let presenceSyncHandler: (() => void) | null = null;
   let statusHandler: StatusCallback | null = null;
   const channel = {
-    on: vi.fn((_type: string, _filter: unknown, handler: typeof broadcastHandler) => {
-      broadcastHandler = handler;
+    on: vi.fn((type: string, filter: unknown, handler: typeof broadcastHandler | typeof presenceSyncHandler) => {
+      if (type === 'broadcast') {
+        broadcastHandler = handler as typeof broadcastHandler;
+      }
+      if (type === 'presence' && (filter as { event?: string }).event === 'sync') {
+        presenceSyncHandler = handler as typeof presenceSyncHandler;
+      }
       return channel;
     }),
     subscribe: vi.fn((handler: StatusCallback) => {
@@ -18,6 +24,9 @@ function makeChannel() {
       return channel;
     }),
     send: vi.fn().mockResolvedValue({}),
+    track: vi.fn().mockResolvedValue({}),
+    untrack: vi.fn().mockResolvedValue({}),
+    presenceState: vi.fn().mockReturnValue({}),
   };
 
   return {
@@ -27,6 +36,9 @@ function makeChannel() {
     },
     status(status: Parameters<StatusCallback>[0]) {
       statusHandler?.(status);
+    },
+    syncPresence() {
+      presenceSyncHandler?.();
     },
   };
 }
@@ -55,7 +67,7 @@ describe('useSessionRealtime', () => {
     const { result } = renderHook(() => useSessionRealtime({ sessionId: 'session-1', onMessage: vi.fn() }));
 
     expect(mocks.channel).toHaveBeenCalledWith('session:session-1', {
-      config: { broadcast: { self: false } },
+      config: { broadcast: { self: false }, presence: { key: expect.stringMatching(/^observer:/) } },
     });
     expect(result.current.status).toBe('connecting');
 

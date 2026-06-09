@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TACTILE_INTERNAL_PAUSE_MS } from '../domain/defaults';
 import type { JoyConClientStatus, SessionBroadcastMessage, SessionState } from '../domain/sessionTypes';
 import { getBlsSession } from '../lib/sessionApi';
@@ -29,10 +29,11 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
   const [hasShownTactilePanel, setHasShownTactilePanel] = useState(false);
   const clock = useServerClock();
   const { t } = useI18n();
+  const clockOffsetRef = useRef(clock.offsetMs);
 
   const handleMessage = useCallback((message: SessionBroadcastMessage) => {
     if (message.kind === 'STATE_UPDATED') {
-      setState(message.state);
+      setState((current) => (!current || message.state.version >= current.version ? message.state : current));
       return;
     }
 
@@ -41,7 +42,11 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
     }
   }, []);
 
-  const { status: realtimeStatus, send } = useSessionRealtime({ sessionId, onMessage: handleMessage });
+  useEffect(() => {
+    clockOffsetRef.current = clock.offsetMs;
+  }, [clock.offsetMs]);
+
+  const { status: realtimeStatus, send } = useSessionRealtime({ sessionId, role: 'client', onMessage: handleMessage });
   const joyConWebHid = useJoyConWebHid();
   const activeState = state ?? fallbackState;
   const tactileIntensity = activeState.tactile.intensity ?? 'medium';
@@ -118,6 +123,29 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
     const interval = window.setInterval(sendReady, 5000);
     return () => window.clearInterval(interval);
   }, [clock.offsetMs, realtimeStatus, send]);
+
+  const notifyClientLeft = useCallback(() => {
+    void send({ kind: 'CLIENT_LEFT', emittedAtMs: getServerNowMs(clockOffsetRef.current) });
+  }, [send]);
+
+  useEffect(() => {
+    if (realtimeStatus !== 'connected') {
+      return;
+    }
+
+    const handleLeaving = () => {
+      notifyClientLeft();
+    };
+
+    window.addEventListener('pagehide', handleLeaving);
+    window.addEventListener('beforeunload', handleLeaving);
+
+    return () => {
+      window.removeEventListener('pagehide', handleLeaving);
+      window.removeEventListener('beforeunload', handleLeaving);
+      notifyClientLeft();
+    };
+  }, [notifyClientLeft, realtimeStatus]);
 
   useEffect(() => {
     if (realtimeStatus !== 'connected') {
@@ -248,6 +276,7 @@ const fallbackState: SessionState = {
   visual: {
     enabled: false,
     color: '#0500a8',
+    stimulus: 'dot',
     background: '#c9ced1',
     dotSize: 52,
     speed: 5,
