@@ -370,6 +370,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
             outputStatus={clientJoyConStatus.outputStatus}
             deviceStatusCollapsible
             defaultDeviceStatusCollapsed
+            defaultInstructionsCollapsed
           />
           <section className="stats-panel panel" aria-label={t('controls.time')}>
             <SessionStats state={state} serverTimeOffsetMs={clock.offsetMs} />

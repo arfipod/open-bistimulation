@@ -183,6 +183,33 @@ describe('TactilePanel', () => {
     expect(screen.getByText('Right Joy-Con')).toBeInTheDocument();
   });
 
+  it('can render Joy-Con quick instructions collapsed by default', () => {
+    const tactile: TactileSettings = { ...DEFAULT_SESSION_STATE.tactile };
+
+    renderWithI18n(
+      <TactilePanel
+        tactile={tactile}
+        onChange={vi.fn()}
+        webHidSupported
+        requestingDevices={false}
+        devices={[]}
+        leftConnected={false}
+        rightConnected={false}
+        error={null}
+        outputStatus={{
+          lastPulseSide: null,
+          lastPulseAt: null,
+          pulseCount: 0,
+          lastError: null,
+          skippedPulseCount: 0,
+        }}
+        defaultInstructionsCollapsed
+      />,
+    );
+
+    expect(screen.getByText('Joy-Con quick instructions').closest('details')).not.toHaveAttribute('open');
+  });
+
   it('collapses the whole tactile panel when requested', () => {
     const tactile: TactileSettings = { ...DEFAULT_SESSION_STATE.tactile };
 

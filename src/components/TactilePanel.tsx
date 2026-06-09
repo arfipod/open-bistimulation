@@ -20,6 +20,7 @@ interface TactilePanelProps {
   autoCollapse?: boolean;
   deviceStatusCollapsible?: boolean;
   defaultDeviceStatusCollapsed?: boolean;
+  defaultInstructionsCollapsed?: boolean;
   onRequestDevices?: () => void;
   onDisconnectDevices?: () => void;
   onRefresh?: () => void;
@@ -102,6 +103,7 @@ export function TactilePanel({
   autoCollapse = false,
   deviceStatusCollapsible = false,
   defaultDeviceStatusCollapsed = false,
+  defaultInstructionsCollapsed = false,
   onRequestDevices,
   onDisconnectDevices,
   onRefresh,
@@ -110,9 +112,6 @@ export function TactilePanel({
   const { t } = useI18n();
   const panelBodyId = useId();
   const deviceStatusId = useId();
-  const [panelCollapsed, setPanelCollapsed] = useState(Boolean(defaultPanelCollapsed || autoCollapse));
-  const [deviceStatusCollapsed, setDeviceStatusCollapsed] = useState(defaultDeviceStatusCollapsed);
-
   const leftDevice = findDevice(devices, 'left');
   const rightDevice = findDevice(devices, 'right');
   const anyConnected = leftConnected || rightConnected;
@@ -120,6 +119,9 @@ export function TactilePanel({
   const intensity = tactile.intensity ?? 'medium';
   const settingsEditable = Boolean(onChange);
   const showDeviceActions = Boolean(onRequestDevices || onDisconnectDevices || onRefresh || onTestPulse);
+  const [panelCollapsed, setPanelCollapsed] = useState(Boolean(defaultPanelCollapsed || autoCollapse));
+  const [deviceStatusCollapsed, setDeviceStatusCollapsed] = useState(defaultDeviceStatusCollapsed);
+  const [instructionsOpen, setInstructionsOpen] = useState(!defaultInstructionsCollapsed && !anyConnected);
 
   useEffect(() => {
     if (panelCollapsible) {
@@ -238,7 +240,7 @@ export function TactilePanel({
         <div id={panelBodyId} className="tactile-panel-body">
           <p className="panel-note">{t('tactile.webHidRequirement')}</p>
 
-          <details className="joycon-instructions" open={!anyConnected}>
+          <details className="joycon-instructions" open={instructionsOpen} onToggle={(event) => setInstructionsOpen(event.currentTarget.open)}>
             <summary>{t('tactile.instructionsTitle')}</summary>
             <ol>
               <li>{t('tactile.instructions.pairBluetooth')}</li>
