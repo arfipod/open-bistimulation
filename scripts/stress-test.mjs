@@ -1,15 +1,18 @@
 #!/usr/bin/env node
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import { createClient } from '@supabase/supabase-js';
 
 const DEFAULT_LOCAL_URL = 'http://127.0.0.1:5173/';
 const DEFAULT_VERCEL_URL = 'https://open-bistimulation.vercel.app/';
+const THERAPIST_HEARTBEAT_STALE_MS = 15_000;
+const HEARTBEAT_FUTURE_TOLERANCE_MS = 5_000;
 
 const DEFAULT_STATE = {
   version: 1,
   status: 'idle',
+  roundDurationMs: null,
   startedAtMs: null,
   pausedAtMs: null,
   elapsedBeforePauseMs: 0,
@@ -19,6 +22,8 @@ const DEFAULT_STATE = {
   visual: {
     enabled: true,
     color: '#0500a8',
+    stimulus: 'dot',
+    stimulusAlternatesSides: true,
     background: '#c9ced1',
     dotSize: 52,
     speed: 5,
@@ -36,6 +41,7 @@ const DEFAULT_STATE = {
     enabled: false,
     pulseDurationMs: 120,
     gapMs: 40,
+    intensity: 'medium',
   },
 };
 
@@ -43,6 +49,22 @@ const DEFAULT_PREFERENCES = {
   visual: DEFAULT_STATE.visual,
   audio: DEFAULT_STATE.audio,
   tactile: DEFAULT_STATE.tactile,
+};
+
+const DEFAULT_JOYCON_STATUS = {
+  webHidSupported: false,
+  requestingDevices: false,
+  devices: [],
+  leftConnected: false,
+  rightConnected: false,
+  error: null,
+  outputStatus: {
+    lastPulseSide: null,
+    lastPulseAt: null,
+    pulseCount: 0,
+    lastError: null,
+    skippedPulseCount: 0,
+  },
 };
 
 function parseArgs(argv) {
@@ -144,6 +166,21 @@ function summarizeTimings(results) {
     p99Ms: percentile(timings, 99),
     maxMs: percentile(timings, 100),
     errors: summarizeErrors(failed),
+  };
+}
+
+function summarizeHeartbeatObservations(observations) {
+  const ages = observations.map((observation) => observation.ageMs).filter(Number.isFinite);
+  const fresh = observations.filter((observation) => observation.fresh).length;
+
+  return {
+    total: observations.length,
+    fresh,
+    stale: observations.length - fresh,
+    minAgeMs: percentile(ages, 0),
+    p50AgeMs: percentile(ages, 50),
+    p95AgeMs: percentile(ages, 95),
+    maxAgeMs: percentile(ages, 100),
   };
 }
 
@@ -407,10 +444,25 @@ async function createBlsSession(client) {
     throw error;
   }
 
+  if (
+    !data ||
+    typeof data.id !== 'string' ||
+    typeof data.therapist_token !== 'string' ||
+    typeof data.client_token !== 'string' ||
+    !Number.isSafeInteger(data.state?.version) ||
+    typeof data.therapist_heartbeat_at !== 'string' ||
+    !Number.isFinite(Date.parse(data.therapist_heartbeat_at))
+  ) {
+    throw new Error('create_bls_session returned an invalid session record.');
+  }
+
   return {
     id: data.id,
     therapistToken: data.therapist_token,
     clientToken: data.client_token,
+    state: data.state,
+    stateVersion: data.state.version,
+    therapistHeartbeatAt: data.therapist_heartbeat_at,
   };
 }
 
@@ -426,29 +478,106 @@ async function getBlsSession(client, sessionId, token) {
     throw error;
   }
 
+  if (
+    !data ||
+    data.id !== sessionId ||
+    (data.role !== 'therapist' && data.role !== 'client') ||
+    typeof data.therapist_heartbeat_at !== 'string' ||
+    !Number.isFinite(Date.parse(data.therapist_heartbeat_at))
+  ) {
+    throw new Error('get_bls_session returned an invalid session record.');
+  }
+
   return data;
 }
 
 async function saveTherapistState(client, sessionId, therapistToken, state) {
-  const { error } = await client.rpc('therapist_save_state', {
+  const { data, error } = await client.rpc('therapist_save_state', {
     _session_id: sessionId,
     _therapist_token: therapistToken,
     _state: state,
+    _expected_version: state.version - 1,
   });
 
   if (error) {
     throw error;
   }
+
+  if (data !== true) {
+    throw new Error('therapist_save_state was rejected by the server.');
+  }
 }
 
-async function endBlsSession(client, sessionId, therapistToken) {
-  const { error } = await client.rpc('end_bls_session', {
+function validateStoppedSessionState(value) {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    Array.isArray(value) ||
+    value.status !== 'stopped' ||
+    !Number.isSafeInteger(value.version) ||
+    value.version < 1 ||
+    value.startedAtMs !== null ||
+    value.pausedAtMs !== null ||
+    value.motionStartedAtMs !== null ||
+    value.motionElapsedBeforePauseMs !== 0 ||
+    typeof value.elapsedBeforePauseMs !== 'number' ||
+    !Number.isFinite(value.elapsedBeforePauseMs) ||
+    value.elapsedBeforePauseMs < 0 ||
+    !Number.isSafeInteger(value.setsCompleted) ||
+    value.setsCompleted < 0 ||
+    typeof value.visual !== 'object' ||
+    value.visual === null ||
+    typeof value.audio !== 'object' ||
+    value.audio === null ||
+    typeof value.tactile !== 'object' ||
+    value.tactile === null
+  ) {
+    throw new Error('therapist_stop_session returned an invalid stopped state.');
+  }
+
+  return value;
+}
+
+async function stopTherapistSession(client, sessionId, therapistToken) {
+  const { data, error } = await client.rpc('therapist_stop_session', {
     _session_id: sessionId,
     _therapist_token: therapistToken,
   });
 
   if (error) {
     throw error;
+  }
+
+  return validateStoppedSessionState(data);
+}
+
+async function endBlsSession(client, sessionId, therapistToken) {
+  const { data, error } = await client.rpc('end_bls_session', {
+    _session_id: sessionId,
+    _therapist_token: therapistToken,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  if (data !== true) {
+    throw new Error('end_bls_session was rejected by the server.');
+  }
+}
+
+async function heartbeatTherapistSession(client, sessionId, therapistToken) {
+  const { data, error } = await client.rpc('therapist_heartbeat', {
+    _session_id: sessionId,
+    _therapist_token: therapistToken,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  if (data !== true) {
+    throw new Error('therapist_heartbeat was rejected by the server.');
   }
 }
 
@@ -458,7 +587,12 @@ async function getServerTimeMs(client) {
     throw error;
   }
 
-  return Number(data);
+  const serverTimeMs = Number(data);
+  if (!Number.isFinite(serverTimeMs) || serverTimeMs < 0) {
+    throw new Error('get_server_time_ms returned an invalid timestamp.');
+  }
+
+  return serverTimeMs;
 }
 
 function runningState(sequence, serverTimeMs) {
@@ -475,15 +609,40 @@ function runningState(sequence, serverTimeMs) {
   };
 }
 
-function subscribeParticipant({ config, sessionId, role, label }) {
+function restartState(stoppedState, serverStartMs) {
+  return {
+    ...stoppedState,
+    version: stoppedState.version + 1,
+    status: 'running',
+    startedAtMs: serverStartMs,
+    pausedAtMs: null,
+    elapsedBeforePauseMs: 0,
+    motionStartedAtMs: serverStartMs,
+    motionElapsedBeforePauseMs: 0,
+  };
+}
+
+function createChannelTopic(sessionId, channelKey) {
+  return `session:${encodeURIComponent(sessionId)}:${encodeURIComponent(channelKey)}`;
+}
+
+function subscribeParticipant({ config, sessionId, channelKey, sessionToken, role, label }) {
   const client = makeSupabaseClient(config, label);
   const messageCounts = {};
+  const authoritativeReadResults = [];
+  const heartbeatObservations = [];
+  const presenceTrackResults = [];
   let received = 0;
   let finalStatus = 'PENDING';
+  let joinMs = null;
+  let serverClockOffsetMs = 0;
+  let authoritativeReadPromise = null;
+  let presenceTrackPromise = null;
 
-  const channel = client.channel(`session:${sessionId}`, {
+  const channel = client.channel(createChannelTopic(sessionId, channelKey), {
     config: {
-      broadcast: { self: false },
+      broadcast: { ack: true, self: false },
+      presence: { key: `${role}:${randomUUID()}` },
     },
   });
 
@@ -491,12 +650,55 @@ function subscribeParticipant({ config, sessionId, role, label }) {
     received += 1;
     const kind = payload?.kind || 'UNKNOWN';
     messageCounts[kind] = (messageCounts[kind] || 0) + 1;
+
+    if (role === 'client' && (kind === 'STATE_UPDATED' || kind === 'SESSION_ENDED')) {
+      void readAuthoritativeState();
+    }
   });
+
+  function readAuthoritativeState() {
+    if (authoritativeReadPromise) {
+      return authoritativeReadPromise;
+    }
+
+    authoritativeReadPromise = timed(async () => {
+      const session = await getBlsSession(client, sessionId, sessionToken);
+      if (session.role !== role) {
+        throw new Error(`get_bls_session returned role ${session.role}; expected ${role}.`);
+      }
+
+      if (role === 'client') {
+        const heartbeatAtMs = Date.parse(session.therapist_heartbeat_at);
+        const ageMs = Date.now() + serverClockOffsetMs - heartbeatAtMs;
+        const fresh =
+          Number.isFinite(ageMs) &&
+          ageMs >= -HEARTBEAT_FUTURE_TOLERANCE_MS &&
+          ageMs <= THERAPIST_HEARTBEAT_STALE_MS;
+        heartbeatObservations.push({ fresh, ageMs });
+
+        if (!fresh) {
+          throw new Error(`THERAPIST_HEARTBEAT_STALE_${Math.round(ageMs)}MS`);
+        }
+      }
+
+      return session;
+    })
+      .then((result) => {
+        authoritativeReadResults.push(result);
+        return result;
+      })
+      .finally(() => {
+        authoritativeReadPromise = null;
+      });
+
+    return authoritativeReadPromise;
+  }
 
   const startedAt = performance.now();
   const ready = new Promise((resolve) => {
     const timeout = setTimeout(() => {
       finalStatus = 'SUBSCRIBE_TIMEOUT';
+      joinMs = Math.round(performance.now() - startedAt);
       resolve(false);
     }, 15_000);
 
@@ -505,11 +707,22 @@ function subscribeParticipant({ config, sessionId, role, label }) {
 
       if (status === 'SUBSCRIBED') {
         clearTimeout(timeout);
+        joinMs = Math.round(performance.now() - startedAt);
+        presenceTrackPromise = timed(async () => {
+          const result = await channel.track({ role, online_at: new Date().toISOString() });
+          if (result !== 'ok') {
+            throw new Error(`PRESENCE_TRACK_${result}`);
+          }
+        }).then((result) => {
+          presenceTrackResults.push(result);
+          return result;
+        });
         resolve(true);
       }
 
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         clearTimeout(timeout);
+        joinMs ??= Math.round(performance.now() - startedAt);
         resolve(false);
       }
     });
@@ -522,9 +735,19 @@ function subscribeParticipant({ config, sessionId, role, label }) {
     client,
     channel,
     ready,
-    getJoinMs: () => Math.round(performance.now() - startedAt),
+    readAuthoritativeState,
+    setServerClockOffsetMs: (nextOffsetMs) => {
+      serverClockOffsetMs = nextOffsetMs;
+    },
+    flushProtocolWork: async () => {
+      await Promise.allSettled([authoritativeReadPromise, presenceTrackPromise].filter(Boolean));
+    },
+    getJoinMs: () => joinMs ?? Math.round(performance.now() - startedAt),
     getReceived: () => received,
     getMessageCounts: () => ({ ...messageCounts }),
+    getAuthoritativeReadResults: () => [...authoritativeReadResults],
+    getHeartbeatObservations: () => [...heartbeatObservations],
+    getPresenceTrackResults: () => [...presenceTrackResults],
     getStatus: () => finalStatus,
   };
 }
@@ -548,16 +771,11 @@ async function sendBroadcast(participant, payload) {
 async function teardownParticipants(participants) {
   await Promise.allSettled(
     participants.map(async (participant) => {
+      if (participant.role) {
+        await participant.channel.untrack();
+      }
       await participant.client.removeChannel(participant.channel);
       participant.client.realtime.disconnect();
-    }),
-  );
-}
-
-async function cleanupSessions(client, sessions) {
-  await Promise.allSettled(
-    sessions.map(async (session) => {
-      await endBlsSession(client, session.id, session.therapistToken);
     }),
   );
 }
@@ -579,10 +797,22 @@ async function runRealtimeScenario({
 
   const rpcJobs = [];
   for (const session of sessions) {
-    rpcJobs.push(() => getBlsSession(setupClient, session.id, session.therapistToken));
+    rpcJobs.push(async () => {
+      const record = await getBlsSession(setupClient, session.id, session.therapistToken);
+      if (record.role !== 'therapist') {
+        throw new Error(`get_bls_session returned role ${record.role}; expected therapist.`);
+      }
+      return record;
+    });
 
     for (let index = 0; index < clientsPerSession; index += 1) {
-      rpcJobs.push(() => getBlsSession(setupClient, session.id, session.clientToken));
+      rpcJobs.push(async () => {
+        const record = await getBlsSession(setupClient, session.id, session.clientToken);
+        if (record.role !== 'client') {
+          throw new Error(`get_bls_session returned role ${record.role}; expected client.`);
+        }
+        return record;
+      });
     }
   }
 
@@ -596,11 +826,15 @@ async function runRealtimeScenario({
       session,
       therapist: null,
       clients: [],
+      currentState: session.state,
+      currentVersion: session.stateVersion,
     };
 
     const therapist = subscribeParticipant({
       config,
       sessionId: session.id,
+      channelKey: session.clientToken,
+      sessionToken: session.therapistToken,
       role: 'therapist',
       label: `therapist-${sessionIndex}`,
     });
@@ -614,6 +848,8 @@ async function runRealtimeScenario({
       const client = subscribeParticipant({
         config,
         sessionId: session.id,
+        channelKey: session.clientToken,
+        sessionToken: session.clientToken,
         role: 'client',
         label: `client-${sessionIndex}-${index}`,
       });
@@ -637,7 +873,14 @@ async function runRealtimeScenario({
 
   let expectedReceived = 0;
   const sendResults = [];
-  let sequence = 0;
+  const stateSaveResults = [];
+  const stopResults = [];
+  const stopVerificationResults = [];
+  const resumeAfterStopResults = [];
+  const resumeVerificationResults = [];
+  const therapistHeartbeatResults = [];
+  const endResults = [];
+  const endVerificationResults = [];
 
   function expectedFor(group) {
     const connectedInGroup = [group.therapist, ...group.clients].filter((participant) => subscribedParticipants.includes(participant));
@@ -657,24 +900,73 @@ async function runRealtimeScenario({
     }
   }
 
-  const serverTimeResult = await timed(() => getServerTimeMs(setupClient));
-  const serverTimeMs = serverTimeResult.ok ? serverTimeResult.value : Date.now();
+  async function persistStateAndBroadcast(group, nextState) {
+    const saveResult = await timed(() =>
+      saveTherapistState(
+        group.therapist.client,
+        group.session.id,
+        group.session.therapistToken,
+        nextState,
+      ),
+    );
+    stateSaveResults.push(saveResult);
 
-  for (const group of groups) {
+    if (!saveResult.ok) {
+      return saveResult;
+    }
+
+    group.currentVersion = nextState.version;
+    group.currentState = nextState;
     await sendAndCount(group.therapist, group, {
       kind: 'STATE_UPDATED',
-      state: runningState(sequence, serverTimeMs),
-      emittedAtMs: serverTimeMs,
+      state: nextState,
+      emittedAtMs: getEstimatedServerTimeMs(),
     });
 
-    await saveTherapistState(setupClient, group.session.id, group.session.therapistToken, runningState(sequence, serverTimeMs)).catch(
-      () => undefined,
+    return saveResult;
+  }
+
+  async function persistAndBroadcastState(group, serverStartedAtMs) {
+    return persistStateAndBroadcast(
+      group,
+      runningState(group.currentVersion + 1, serverStartedAtMs),
     );
+  }
+
+  async function sendTherapistHeartbeat(group) {
+    const result = await timed(() =>
+      heartbeatTherapistSession(
+        group.therapist.client,
+        group.session.id,
+        group.session.therapistToken,
+      ),
+    );
+    therapistHeartbeatResults.push(result);
+  }
+
+  const serverTimeResult = await timed(() => getServerTimeMs(setupClient));
+  const serverTimeMs = serverTimeResult.ok ? serverTimeResult.value : Date.now();
+  const serverClockOffsetMs = serverTimeMs - Date.now();
+  const getEstimatedServerTimeMs = () => Date.now() + serverClockOffsetMs;
+  participants.forEach((participant) => participant.setServerClockOffsetMs(serverClockOffsetMs));
+  const authoritativePollingParticipants = participants.filter(
+    (participant) =>
+      participant.role === 'therapist' || subscribedParticipants.includes(participant),
+  );
+
+  await Promise.all(
+    authoritativePollingParticipants.map((participant) => participant.readAuthoritativeState()),
+  );
+
+  for (const group of groups) {
+    await persistAndBroadcastState(group, serverTimeMs);
   }
 
   const startedAt = performance.now();
   let nextStateUpdateAt = 0;
-  let nextHeartbeatAt = 0;
+  let nextTherapistHeartbeatAt = 0;
+  let nextParticipantTelemetryAt = 0;
+  let nextAuthoritativePollAt = 5_000;
   const stateUpdateIntervalMs = stateUpdateHz > 0 ? 1000 / stateUpdateHz : null;
 
   while (performance.now() - startedAt < durationMs) {
@@ -682,37 +974,218 @@ async function runRealtimeScenario({
 
     if (stateUpdateIntervalMs !== null && elapsed >= nextStateUpdateAt) {
       for (const group of groups) {
-        sequence += 1;
-        await sendAndCount(group.therapist, group, {
-          kind: 'STATE_UPDATED',
-          state: runningState(sequence, serverTimeMs),
-          emittedAtMs: Date.now(),
-        });
+        await persistAndBroadcastState(group, serverTimeMs);
       }
 
       nextStateUpdateAt += stateUpdateIntervalMs;
     }
 
-    if (elapsed >= nextHeartbeatAt) {
+    if (elapsed >= nextTherapistHeartbeatAt) {
+      for (const group of groups) {
+        await sendTherapistHeartbeat(group);
+      }
+
+      nextTherapistHeartbeatAt += 5_000;
+    }
+
+    if (elapsed >= nextAuthoritativePollAt) {
+      for (const participant of authoritativePollingParticipants) {
+        void participant.readAuthoritativeState();
+      }
+
+      nextAuthoritativePollAt += 5_000;
+    }
+
+    if (elapsed >= nextParticipantTelemetryAt) {
       for (const group of groups) {
         for (const client of group.clients) {
+          if (!subscribedParticipants.includes(client)) {
+            continue;
+          }
+
+          void client.readAuthoritativeState();
           await sendAndCount(client, group, {
             kind: 'CLIENT_READY',
-            emittedAtMs: Date.now(),
+            emittedAtMs: getEstimatedServerTimeMs(),
+          });
+          await sendAndCount(client, group, {
+            kind: 'JOYCON_STATUS',
+            status: DEFAULT_JOYCON_STATUS,
+            emittedAtMs: getEstimatedServerTimeMs(),
           });
         }
 
       }
 
-      nextHeartbeatAt += 5000;
+      nextParticipantTelemetryAt += 5_000;
     }
 
     await sleep(10);
   }
 
+  for (const group of groups) {
+    const expectedStoppedVersion = group.currentVersion + 1;
+    const stopResult = await timed(async () => {
+      const stoppedState = await stopTherapistSession(
+        group.therapist.client,
+        group.session.id,
+        group.session.therapistToken,
+      );
+
+      if (stoppedState.version !== expectedStoppedVersion) {
+        throw new Error(
+          `therapist_stop_session returned version ${stoppedState.version}; expected ${expectedStoppedVersion}.`,
+        );
+      }
+
+      return stoppedState;
+    });
+    stopResults.push(stopResult);
+
+    if (!stopResult.ok) {
+      continue;
+    }
+
+    group.currentState = stopResult.value;
+    group.currentVersion = stopResult.value.version;
+    await sendAndCount(group.therapist, group, {
+      kind: 'STATE_UPDATED',
+      state: stopResult.value,
+      emittedAtMs: getEstimatedServerTimeMs(),
+    });
+
+    stopVerificationResults.push(
+      await timed(async () => {
+        const stoppedSession = await getBlsSession(
+          setupClient,
+          group.session.id,
+          group.session.clientToken,
+        );
+        const stoppedState = validateStoppedSessionState(stoppedSession.state);
+
+        if (stoppedSession.role !== 'client' || stoppedState.version !== expectedStoppedVersion) {
+          throw new Error('therapist_stop_session was not authoritative for the participant.');
+        }
+
+        return stoppedSession;
+      }),
+    );
+  }
+
+  await Promise.all(
+    subscribedParticipants
+      .filter((participant) => participant.role === 'client')
+      .map((participant) => participant.readAuthoritativeState()),
+  );
+
+  for (const group of groups) {
+    if (group.currentState?.status !== 'stopped') {
+      continue;
+    }
+
+    const resumedState = restartState(
+      group.currentState,
+      getEstimatedServerTimeMs() + 300,
+    );
+    const resumeResult = await persistStateAndBroadcast(group, resumedState);
+    resumeAfterStopResults.push(resumeResult);
+
+    if (!resumeResult.ok) {
+      continue;
+    }
+
+    resumeVerificationResults.push(
+      await timed(async () => {
+        const resumedSession = await getBlsSession(
+          setupClient,
+          group.session.id,
+          group.session.clientToken,
+        );
+
+        if (
+          resumedSession.role !== 'client' ||
+          resumedSession.ended_at !== null ||
+          resumedSession.state?.status !== 'running' ||
+          resumedSession.state?.version !== resumedState.version ||
+          resumedSession.state?.startedAtMs !== resumedState.startedAtMs ||
+          resumedSession.state?.motionStartedAtMs !== resumedState.motionStartedAtMs
+        ) {
+          throw new Error('The versioned restart after atomic stop was not authoritative.');
+        }
+
+        return resumedSession;
+      }),
+    );
+  }
+
+  await Promise.all(
+    subscribedParticipants
+      .filter((participant) => participant.role === 'client')
+      .map((participant) => participant.readAuthoritativeState()),
+  );
+
+  for (const group of groups) {
+    const expectedEndedVersion = group.currentVersion + 1;
+    const endResult = await timed(() =>
+      endBlsSession(
+        group.therapist.client,
+        group.session.id,
+        group.session.therapistToken,
+      ),
+    );
+    endResults.push(endResult);
+
+    if (!endResult.ok) {
+      continue;
+    }
+
+    group.currentVersion = expectedEndedVersion;
+    await sendAndCount(group.therapist, group, {
+      kind: 'SESSION_ENDED',
+      emittedAtMs: getEstimatedServerTimeMs(),
+    });
+
+    endVerificationResults.push(
+      await timed(async () => {
+        const endedSession = await getBlsSession(
+          setupClient,
+          group.session.id,
+          group.session.clientToken,
+        );
+
+        if (
+          endedSession.role !== 'client' ||
+          typeof endedSession.ended_at !== 'string' ||
+          !Number.isFinite(Date.parse(endedSession.ended_at)) ||
+          endedSession.state?.status !== 'ended' ||
+          endedSession.state?.version !== expectedEndedVersion
+        ) {
+          throw new Error('end_bls_session did not atomically persist the expected ended state.');
+        }
+
+        return endedSession;
+      }),
+    );
+  }
+
+  await Promise.all(
+    subscribedParticipants
+      .filter((participant) => participant.role === 'client')
+      .map((participant) => participant.readAuthoritativeState()),
+  );
   await sleep(2_000);
+  await Promise.all(participants.map((participant) => participant.flushProtocolWork()));
 
   const received = subscribedParticipants.reduce((sum, participant) => sum + participant.getReceived(), 0);
+  const authoritativeReadResults = participants.flatMap((participant) =>
+    participant.getAuthoritativeReadResults(),
+  );
+  const heartbeatObservations = participants.flatMap((participant) =>
+    participant.getHeartbeatObservations(),
+  );
+  const presenceTrackResults = subscribedParticipants.flatMap((participant) =>
+    participant.getPresenceTrackResults(),
+  );
   const countsByKind = {};
   for (const participant of subscribedParticipants) {
     for (const [kind, count] of Object.entries(participant.getMessageCounts())) {
@@ -721,7 +1194,6 @@ async function runRealtimeScenario({
   }
 
   await teardownParticipants(participants);
-  await cleanupSessions(setupClient, sessions);
   setupClient.realtime.disconnect();
 
   return {
@@ -737,9 +1209,20 @@ async function runRealtimeScenario({
     stateUpdateHz,
     createSummary: summarizeTimings(createResults),
     rpcSummary: summarizeTimings(rpcResults),
+    authoritativeReadSummary: summarizeTimings(authoritativeReadResults),
+    heartbeatFreshnessSummary: summarizeHeartbeatObservations(heartbeatObservations),
+    therapistHeartbeatSummary: summarizeTimings(therapistHeartbeatResults),
+    stateSaveSummary: summarizeTimings(stateSaveResults),
+    stopSummary: summarizeTimings(stopResults),
+    stopVerificationSummary: summarizeTimings(stopVerificationResults),
+    resumeAfterStopSummary: summarizeTimings(resumeAfterStopResults),
+    resumeVerificationSummary: summarizeTimings(resumeVerificationResults),
     joinSummary: summarizeTimings(joinResults),
+    presenceTrackSummary: summarizeTimings(presenceTrackResults),
     serverTimeSummary: summarizeTimings([serverTimeResult]),
     sendSummary: summarizeTimings(sendResults),
+    endSummary: summarizeTimings(endResults),
+    endVerificationSummary: summarizeTimings(endVerificationResults),
     expectedReceived,
     received,
     deliveryRate: expectedReceived > 0 ? Number((received / expectedReceived).toFixed(4)) : null,
@@ -812,6 +1295,9 @@ async function main() {
 
 Notes:
   - Realtime uses separate Supabase clients per participant to approximate separate browser WebSocket connections.
+  - It uses token-scoped channels, advisory role Presence, acknowledged best-effort broadcasts, CAS state saves, and authoritative polling.
+  - It exercises the therapist-token heartbeat freshness gate and verifies atomic stop, versioned restart, and atomic end state.
+  - Realtime scenarios create and end real disposable session rows; deploy the current schema before running them.
   - For local runs, Supabase config is read from .env.local/.env.
   - For deployed Vite runs, the script first tries to read the public Supabase config from the built assets.`);
 }

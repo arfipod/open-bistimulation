@@ -43,4 +43,19 @@ describe('useServerClock', () => {
     expect(result.current.offsetMs).toBe(850);
     expect(result.current.error).toBeNull();
   });
+
+  it('invalidates an earlier sync when a later refresh fails', async () => {
+    mocks.getServerTimeMs.mockResolvedValueOnce(2_000).mockRejectedValueOnce(new Error('offline'));
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+
+    const { result } = renderHook(() => useServerClock());
+    await waitFor(() => expect(result.current.isSynced).toBe(true));
+
+    await act(async () => {
+      await result.current.sync();
+    });
+
+    expect(result.current.isSynced).toBe(false);
+    expect(result.current.error).toBe('offline');
+  });
 });

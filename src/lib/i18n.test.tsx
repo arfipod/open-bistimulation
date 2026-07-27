@@ -64,6 +64,26 @@ describe('i18n provider', () => {
     expect(document.documentElement.lang).toBe('es');
   });
 
+  it('keeps working when browser storage is unavailable', () => {
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-US');
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+
+    render(
+      <LanguageProvider>
+        <Probe />
+      </LanguageProvider>,
+    );
+
+    expect(screen.getByTestId('language')).toHaveTextContent('en');
+    fireEvent.click(screen.getByRole('button', { name: 'toggle' }));
+    expect(screen.getByTestId('language')).toHaveTextContent('es');
+  });
+
   it('throws a clear error when the hook is used outside the provider', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
 

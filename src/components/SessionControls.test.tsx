@@ -31,6 +31,10 @@ describe('SessionControls', () => {
 
     expect(screen.getByText('Remaining')).toBeInTheDocument();
     expect(screen.getAllByText('1:00')).toHaveLength(2);
+    expect(screen.getByRole('group', { name: 'Presets' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Free' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: '1:00' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '5:00' })).toHaveAttribute('aria-pressed', 'false');
 
     const input = screen.getByLabelText('Round duration in minutes and seconds, or free');
     fireEvent.change(input, { target: { value: '2:05' } });
@@ -68,6 +72,16 @@ describe('SessionControls', () => {
     expect(input).toHaveValue('1:00');
     expect(onRoundDurationChange).not.toHaveBeenCalled();
 
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.blur(input);
+    expect(input).toHaveValue('1:00');
+    expect(onRoundDurationChange).not.toHaveBeenCalled();
+
+    fireEvent.change(input, { target: { value: '1:60' } });
+    fireEvent.blur(input);
+    expect(input).toHaveValue('1:00');
+    expect(onRoundDurationChange).not.toHaveBeenCalled();
+
     fireEvent.change(input, { target: { value: '2' } });
     fireEvent.blur(input);
     expect(onRoundDurationChange).toHaveBeenLastCalledWith(10_000);
@@ -75,6 +89,28 @@ describe('SessionControls', () => {
     fireEvent.change(input, { target: { value: '9999:00' } });
     fireEvent.blur(input);
     expect(onRoundDurationChange).toHaveBeenLastCalledWith(3_600_000);
+  });
+
+  it('sets an unlimited round only from explicit free text or the Free button', () => {
+    const onRoundDurationChange = vi.fn();
+
+    renderWithI18n(
+      <SessionControls
+        state={makeState()}
+        serverTimeOffsetMs={0}
+        roundDurationMs={60_000}
+        onRoundDurationChange={onRoundDurationChange}
+      />,
+    );
+
+    const input = screen.getByLabelText('Round duration in minutes and seconds, or free');
+    fireEvent.change(input, { target: { value: 'free' } });
+    fireEvent.blur(input);
+    expect(onRoundDurationChange).toHaveBeenLastCalledWith(null);
+
+    onRoundDurationChange.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Free' }));
+    expect(onRoundDurationChange).toHaveBeenCalledWith(null);
   });
 
   it('disables duration controls while the session is stopping or busy', () => {
@@ -131,5 +167,26 @@ describe('SessionControlActions', () => {
 
     expect(screen.getByRole('button', { name: 'Stopping...' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled();
+  });
+
+  it('keeps emergency Stop available while ordinary work is pending', () => {
+    const { rerender } = renderWithI18n(
+      <SessionControlActions state={makeState({ status: 'running' })} {...actions} busy />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Save preferences' })).toBeDisabled();
+
+    rerender(
+      <SessionControlActions
+        state={makeState({ status: 'running' })}
+        {...actions}
+        busy
+        safetyBusy
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeDisabled();
   });
 });

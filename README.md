@@ -66,7 +66,7 @@ See [docs/TACTILE_MOBILE.md](docs/TACTILE_MOBILE.md) for the current browser flo
 The schema creates:
 
 - `public.sessions`
-- RPC functions for creating sessions, loading sessions, saving controller state/preferences, ending sessions, and reading server time.
+- RPC functions for creating/loading sessions, saving controller state/preferences, sending controller heartbeats, stopping/ending atomically, and reading server time.
 - RLS policies that deny direct table access from anon/authenticated roles. The app uses `SECURITY DEFINER` RPC functions instead.
 
 For compatibility with older installs, the schema also drops obsolete tactile-device persistence objects if they exist. Those objects belonged to the removed browser-device registration flow.
@@ -79,9 +79,9 @@ Supabase stores the minimum operational data needed for the MVP:
 - Controller and participant tokens
 - Session state
 - Preferences
-- Timestamps such as creation, update, expiry, and end time
+- Timestamps such as creation, update, controller heartbeat, expiry, and end time
 
-Tactile preferences may include whether tactile output is enabled plus pulse timing values. Joy-Con detection and rumble commands stay in the controller browser and are not stored in Supabase.
+Tactile preferences may include whether tactile output is enabled plus pulse timing values. Joy-Con detection and rumble commands stay in the participant browser and are not stored in Supabase.
 
 The app does not intentionally store participant names, professional notes, diagnostic labels, symptoms, care plans, or transcripts. Avoid placing sensitive identifying information into URLs, browser tools, issue reports, logs, or deployment settings.
 
@@ -91,7 +91,7 @@ Sessions receive an `expires_at` timestamp. To remove expired sessions manually:
 select public.cleanup_expired_bls_sessions();
 ```
 
-Optional scheduling can be done in Supabase with a scheduler such as `pg_cron` if it is enabled for the project:
+Production deployments should schedule cleanup with a scheduler such as `pg_cron` if it is enabled for the project:
 
 ```sql
 select cron.schedule(
@@ -115,6 +115,7 @@ The cleanup deletes expired rows from `public.sessions`.
 
 ```sh
 npm run legal:check
+npm test
 npm run typecheck
 npm run build
 ```

@@ -51,6 +51,7 @@ export function VisualPanel({
 }: VisualPanelProps) {
   const { t } = useI18n();
   const panelBodyId = useId();
+  const panelTitleId = useId();
   const selectedDirection = visual.direction === 'diagonal' ? 'diagonal-down' : visual.direction;
   const selectedMotionOrder = visual.motionOrder ?? 'left-to-right';
   const selectedStimulus = visual.stimulus ?? 'dot';
@@ -65,13 +66,15 @@ export function VisualPanel({
   }, [autoCollapse, defaultPanelCollapsed, panelCollapsible]);
 
   return (
-    <section className={`control-panel ${panelCollapsed ? 'is-collapsed' : ''}`}>
+    <section className={`control-panel ${panelCollapsed ? 'is-collapsed' : ''}`} aria-labelledby={panelTitleId}>
       <header className="panel-header">
-        <h2>{t('visual.title')}</h2>
+        <h2 id={panelTitleId}>{t('visual.title')}</h2>
         <div className="panel-header-actions">
           <label className="switch">
             <input
               type="checkbox"
+              role="switch"
+              aria-labelledby={panelTitleId}
               checked={visual.enabled}
               onChange={(event) => onChange({ ...visual, enabled: event.target.checked })}
             />
@@ -97,7 +100,7 @@ export function VisualPanel({
 
       <div className="field-group">
         <label>{t('visual.color')}</label>
-        <div className="swatch-row">
+        <div className="swatch-row" role="group" aria-label={t('visual.color')}>
           {VISUAL_COLORS.map((color) => (
             <button
               key={color}
@@ -105,12 +108,14 @@ export function VisualPanel({
               style={{ backgroundColor: color }}
               type="button"
               aria-label={t('visual.colorAria', { color })}
+              aria-pressed={visual.color === color}
               onClick={() => onChange({ ...visual, color })}
             />
           ))}
           <input
             className="color-input"
             type="color"
+            aria-label={t('visual.color')}
             value={visual.color}
             onChange={(event) => onChange({ ...visual, color: event.target.value })}
           />
@@ -119,7 +124,7 @@ export function VisualPanel({
 
       <div className="field-group">
         <label>{t('visual.background')}</label>
-        <div className="swatch-row">
+        <div className="swatch-row" role="group" aria-label={t('visual.background')}>
           {BACKGROUND_COLORS.map((background) => (
             <button
               key={background}
@@ -127,12 +132,14 @@ export function VisualPanel({
               style={{ backgroundColor: background }}
               type="button"
               aria-label={t('visual.backgroundAria', { color: background })}
+              aria-pressed={visual.background === background}
               onClick={() => onChange({ ...visual, background })}
             />
           ))}
           <input
             className="color-input"
             type="color"
+            aria-label={t('visual.background')}
             value={visual.background}
             onChange={(event) => onChange({ ...visual, background: event.target.value })}
           />
@@ -141,13 +148,14 @@ export function VisualPanel({
 
       <div className="field-group">
         <label>{t('visual.stimulus')}</label>
-        <div className="stimulus-grid">
+        <div className="stimulus-grid" role="group" aria-label={t('visual.stimulus')}>
           {VISUAL_STIMULI.map((stimulus) => (
             <button
               key={stimulus.value}
               type="button"
               className={`stimulus-option ${selectedStimulus === stimulus.value ? 'is-selected' : ''}`}
               aria-label={`${t('visual.stimulus')}: ${t(stimulus.labelKey)}`}
+              aria-pressed={selectedStimulus === stimulus.value}
               onClick={() => onChange({ ...visual, stimulus: stimulus.value })}
             >
               <span aria-hidden="true">{stimulus.preview}</span>
@@ -183,7 +191,7 @@ export function VisualPanel({
 
       <div className="field-group">
         <label>{t('visual.direction')}</label>
-        <div className="direction-grid">
+        <div className="direction-grid" role="group" aria-label={t('visual.direction')}>
           {directions.map((direction) => (
             <button
               key={direction.value}
@@ -191,6 +199,7 @@ export function VisualPanel({
               className={selectedDirection === direction.value ? 'is-selected' : ''}
               title={t(direction.labelKey)}
               aria-label={t(direction.labelKey)}
+              aria-pressed={selectedDirection === direction.value}
               onClick={() => onChange({ ...visual, direction: direction.value })}
             >
               <DirectionIcon name={direction.icon} />
@@ -202,12 +211,13 @@ export function VisualPanel({
 
       <div className="field-group">
         <label>{t('visual.motionOrder')}</label>
-        <div className="segmented-grid three">
+        <div className="segmented-grid three" role="group" aria-label={t('visual.motionOrder')}>
           {motionOrders.map((motionOrder) => (
             <button
               key={motionOrder.value}
               type="button"
               className={selectedMotionOrder === motionOrder.value ? 'is-selected' : ''}
+              aria-pressed={selectedMotionOrder === motionOrder.value}
               onClick={() => onChange({ ...visual, motionOrder: motionOrder.value })}
             >
               {t(motionOrder.labelKey)}
@@ -218,12 +228,13 @@ export function VisualPanel({
 
       <div className="field-group">
         <label>{t('visual.position')}</label>
-        <div className="segmented-grid three">
+        <div className="segmented-grid three" role="group" aria-label={t('visual.position')}>
           {positions.map((position) => (
             <button
               key={position.value}
               type="button"
               className={visual.verticalPosition === position.value ? 'is-selected' : ''}
+              aria-pressed={visual.verticalPosition === position.value}
               onClick={() => onChange({ ...visual, verticalPosition: position.value })}
             >
               {t(position.labelKey)}

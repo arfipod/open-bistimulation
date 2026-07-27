@@ -1,11 +1,11 @@
 {
   "name": "Open Bistimulation",
   "short_name": "Bistimulation",
-  "description": "Remote bilateral stimulation sessions with visual, audio and tactile modes.",
+  "description": "Browser-based bilateral visual, audio, and optional tactile cues.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#eef2f3",
-  "theme_color": "#46739D",
+  "background_color": "#edf1ef",
+  "theme_color": "#182321",
   "icons": [
     {
       "src": "/app-icon.svg",

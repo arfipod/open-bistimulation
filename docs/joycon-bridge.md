@@ -1,6 +1,6 @@
 # Legacy Local Joy-Con Bridge
 
-Open Bistimulation now sends Joy-Con rumble directly from the controller browser through WebHID. The local Node bridge is no longer required by the hosted Vercel app or the local Vite app.
+Open Bistimulation now sends Joy-Con rumble directly from the participant browser through WebHID. The local Node bridge is no longer required by the hosted Vercel app or the local Vite app.
 
 This document covers the legacy bridge and CLI diagnostics. The bridge lives in `scripts/`, uses `node-hid`, and talks to official Nintendo Joy-Con controllers over Bluetooth. It is a local companion process only; it is not deployed to Vercel.
 
@@ -148,7 +148,7 @@ The bridge HTTP API intentionally rejects `path` and `packetBytes`. The CLI has 
 
 ## Current App Flow
 
-For the current app, do not start this bridge. Pair both Joy-Cons over Bluetooth, open the controller UI in a WebHID-capable browser, then use `Add Joy-Cons` in the tactile panel. See [TACTILE_MOBILE.md](TACTILE_MOBILE.md).
+For the current app, do not start this bridge. Pair both Joy-Cons over Bluetooth on the participant computer, open the participant link in a WebHID-capable browser, then use `Add Joy-Cons` in the tactile panel. See [TACTILE_MOBILE.md](TACTILE_MOBILE.md).
 
 ## Packet Length
 

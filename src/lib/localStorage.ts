@@ -1,4 +1,5 @@
 import { DEFAULT_PREFERENCES } from '../domain/defaults';
+import { normalizeSessionPreferences } from '../domain/sessionValidation';
 import type { SessionPreferences } from '../domain/sessionTypes';
 
 const PREFERENCES_KEY = 'open-bistimulation.preferences.v1';
@@ -31,9 +32,13 @@ export function isValidJoyConBridgeUrl(value: string): boolean {
 }
 
 export function getJoyConBridgeUrl(): string {
-  const raw = localStorage.getItem(JOYCON_BRIDGE_URL_KEY);
-  const normalized = raw ? normalizeJoyConBridgeUrl(raw) : null;
-  return normalized ?? DEFAULT_JOYCON_BRIDGE_URL;
+  try {
+    const raw = localStorage.getItem(JOYCON_BRIDGE_URL_KEY);
+    const normalized = raw ? normalizeJoyConBridgeUrl(raw) : null;
+    return normalized ?? DEFAULT_JOYCON_BRIDGE_URL;
+  } catch {
+    return DEFAULT_JOYCON_BRIDGE_URL;
+  }
 }
 
 export function saveJoyConBridgeUrl(url: string): void {
@@ -43,20 +48,24 @@ export function saveJoyConBridgeUrl(url: string): void {
     throw new Error('Invalid Joy-Con bridge URL.');
   }
 
-  localStorage.setItem(JOYCON_BRIDGE_URL_KEY, normalized);
+  try {
+    localStorage.setItem(JOYCON_BRIDGE_URL_KEY, normalized);
+  } catch {
+    // The bridge can still be used for the current page when storage is blocked.
+  }
 }
 
 export function loadLocalPreferences(): SessionPreferences {
-  const raw = localStorage.getItem(PREFERENCES_KEY);
-
-  if (!raw) {
-    return DEFAULT_PREFERENCES;
-  }
-
   try {
+    const raw = localStorage.getItem(PREFERENCES_KEY);
+
+    if (!raw) {
+      return DEFAULT_PREFERENCES;
+    }
+
     const parsed = JSON.parse(raw) as Partial<SessionPreferences>;
 
-    return {
+    return normalizeSessionPreferences({
       ...DEFAULT_PREFERENCES,
       ...parsed,
       visual: {
@@ -71,24 +80,36 @@ export function loadLocalPreferences(): SessionPreferences {
         ...DEFAULT_PREFERENCES.tactile,
         ...parsed.tactile,
       },
-    } as SessionPreferences;
+    });
   } catch {
     return DEFAULT_PREFERENCES;
   }
 }
 
 export function saveLocalPreferences(preferences: SessionPreferences): void {
-  localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
+  try {
+    localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
+  } catch {
+    // Session persistence must not depend on optional browser storage.
+  }
 }
 
 export function getOrCreateLocalId(key: string): string {
-  const current = localStorage.getItem(key);
+  try {
+    const current = localStorage.getItem(key);
 
-  if (current) {
-    return current;
+    if (current) {
+      return current;
+    }
+  } catch {
+    // Fall through to an ephemeral identifier.
   }
 
   const next = crypto.randomUUID();
-  localStorage.setItem(key, next);
+  try {
+    localStorage.setItem(key, next);
+  } catch {
+    // An ephemeral identifier is sufficient when storage is unavailable.
+  }
   return next;
 }

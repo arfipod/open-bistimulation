@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createAudioEngine, type AudioEngine } from '../domain/audioEngine';
 import { getMotionSnapshot, getServerNowMs } from '../domain/motion';
 import type { SessionRole, SessionState } from '../domain/sessionTypes';
@@ -10,60 +10,133 @@ interface UseAudioBlsOptions {
   role: SessionRole;
 }
 
-export function useAudioBls({ state, serverTimeOffsetMs, unlocked, role }: UseAudioBlsOptions): string | null {
+export interface UseAudioBlsResult {
+  error: string | null;
+  isUnlocked: boolean;
+  unlock: () => Promise<boolean>;
+}
+
+function messageFromError(error: unknown): string {
+  return error instanceof Error ? error.message : 'Audio could not be initialized.';
+}
+
+export function useAudioBls({ state, serverTimeOffsetMs, unlocked, role }: UseAudioBlsOptions): UseAudioBlsResult {
   const engineRef = useRef<AudioEngine | null>(null);
   const lastHalfCycleRef = useRef<number | null>(null);
-  const errorRef = useRef<string | null>(null);
+  const unlockPromiseRef = useRef<Promise<boolean> | null>(null);
+  const mountedRef = useRef(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const unlock = useCallback((): Promise<boolean> => {
+    if (unlockPromiseRef.current) {
+      return unlockPromiseRef.current;
+    }
+
+    let engine: AudioEngine;
+
+    try {
+      engineRef.current ??= createAudioEngine();
+      engine = engineRef.current;
+    } catch (nextError) {
+      if (mountedRef.current) {
+        setIsUnlocked(false);
+        setError(messageFromError(nextError));
+      }
+      return Promise.resolve(false);
+    }
+
+    const attempt = engine
+      .unlock()
+      .then(() => {
+        const nextIsUnlocked = engine.isUnlocked();
+
+        if (mountedRef.current) {
+          setIsUnlocked(nextIsUnlocked);
+          setError(nextIsUnlocked ? null : 'The browser did not allow audio output. Try enabling audio again.');
+        }
+
+        return nextIsUnlocked;
+      })
+      .catch((nextError: unknown) => {
+        if (mountedRef.current) {
+          setIsUnlocked(false);
+          setError(messageFromError(nextError));
+        }
+        return false;
+      })
+      .finally(() => {
+        if (unlockPromiseRef.current === attempt) {
+          unlockPromiseRef.current = null;
+        }
+      });
+
+    unlockPromiseRef.current = attempt;
+    return attempt;
+  }, []);
 
   useEffect(() => {
-    if (!unlocked || !state.audio.enabled) {
+    if (!unlocked || !isUnlocked || !state.audio.enabled || state.status !== 'running') {
+      lastHalfCycleRef.current = null;
       return;
     }
 
     if (role === 'therapist' && state.audio.therapistMuted) {
+      lastHalfCycleRef.current = null;
       return;
     }
 
-    try {
-      engineRef.current ??= createAudioEngine();
-      errorRef.current = null;
-    } catch (error) {
-      errorRef.current = error instanceof Error ? error.message : 'Audio could not be initialized.';
+    const engine = engineRef.current;
+
+    if (!engine?.isUnlocked()) {
+      lastHalfCycleRef.current = null;
+      setIsUnlocked(false);
       return;
     }
 
     let frame = 0;
+    let cancelled = false;
 
     const tick = () => {
-      if (state.status === 'running') {
-        const snapshot = getMotionSnapshot(state, getServerNowMs(serverTimeOffsetMs));
+      const snapshot = getMotionSnapshot(state, getServerNowMs(serverTimeOffsetMs));
 
-        if (lastHalfCycleRef.current === null) {
-          lastHalfCycleRef.current = snapshot.halfCycleIndex;
-        } else if (snapshot.halfCycleIndex !== lastHalfCycleRef.current) {
-          lastHalfCycleRef.current = snapshot.halfCycleIndex;
-          engineRef.current?.play(state.audio.sound, snapshot.side, state.audio.volume);
+      if (lastHalfCycleRef.current === null) {
+        lastHalfCycleRef.current = snapshot.halfCycleIndex;
+      } else if (snapshot.halfCycleIndex !== lastHalfCycleRef.current) {
+        lastHalfCycleRef.current = snapshot.halfCycleIndex;
+        try {
+          engine.play(state.audio.sound, snapshot.side, state.audio.volume);
+          setError(null);
+        } catch (nextError) {
+          setIsUnlocked(false);
+          setError(messageFromError(nextError));
+          return;
         }
-      } else {
-        lastHalfCycleRef.current = null;
       }
 
-      frame = window.requestAnimationFrame(tick);
+      if (!cancelled) {
+        frame = window.requestAnimationFrame(tick);
+      }
     };
 
     frame = window.requestAnimationFrame(tick);
 
     return () => {
+      cancelled = true;
       window.cancelAnimationFrame(frame);
     };
-  }, [role, serverTimeOffsetMs, state, unlocked]);
+  }, [isUnlocked, role, serverTimeOffsetMs, state, unlocked]);
 
   useEffect(() => {
+    mountedRef.current = true;
+
     return () => {
+      mountedRef.current = false;
+      unlockPromiseRef.current = null;
       engineRef.current?.dispose();
       engineRef.current = null;
     };
   }, []);
 
-  return errorRef.current;
+  return { error, isUnlocked, unlock };
 }

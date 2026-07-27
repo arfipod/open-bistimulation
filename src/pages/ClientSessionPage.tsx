@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TACTILE_INTERNAL_PAUSE_MS } from '../domain/defaults';
 import type { JoyConClientStatus, SessionBroadcastMessage, SessionState } from '../domain/sessionTypes';
 import { getBlsSession } from '../lib/sessionApi';
-import { getServerNowMs } from '../domain/motion';
+import { getElapsedMs, getServerNowMs } from '../domain/motion';
 import { useI18n } from '../lib/i18n';
 import { useAudioBls } from '../hooks/useAudioBls';
 import { useJoyConTactileOutput } from '../hooks/useJoyConTactileOutput';
@@ -18,43 +18,129 @@ import { TactilePanel } from '../components/TactilePanel';
 interface ClientSessionPageProps {
   sessionId: string;
   token?: string;
+  preview?: boolean;
 }
 
-export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) {
+const THERAPIST_HEARTBEAT_STALE_MS = 15_000;
+const HEARTBEAT_FUTURE_TOLERANCE_MS = 5_000;
+
+export function ClientSessionPage({ sessionId, token, preview = false }: ClientSessionPageProps) {
   const [state, setState] = useState<SessionState | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [validatedChannelKey, setValidatedChannelKey] = useState<string | null>(null);
+  const [fatalError, setFatalError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [hasShownTactilePanel, setHasShownTactilePanel] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState<string | null>(null);
+  const [locallyStopped, setLocallyStopped] = useState(false);
+  const [roundExpired, setRoundExpired] = useState(false);
+  const [therapistConnected, setTherapistConnected] = useState(false);
+  const [therapistHeartbeatAt, setTherapistHeartbeatAt] = useState<string | null>(null);
+  const [heartbeatExpiryTick, setHeartbeatExpiryTick] = useState(0);
+  const [reconcileRequest, setReconcileRequest] = useState(0);
+  const [verifiedReconcileRequest, setVerifiedReconcileRequest] = useState(-1);
+  const [verifiedConnectionEpoch, setVerifiedConnectionEpoch] = useState(-1);
   const clock = useServerClock();
   const { t } = useI18n();
-  const clockOffsetRef = useRef(clock.offsetMs);
+  const tRef = useRef(t);
 
   const handleMessage = useCallback((message: SessionBroadcastMessage) => {
-    if (message.kind === 'STATE_UPDATED') {
-      setState((current) => (!current || message.state.version >= current.version ? message.state : current));
-      return;
-    }
-
-    if (message.kind === 'SESSION_ENDED') {
-      setSessionEnded(true);
+    if (message.kind === 'STATE_UPDATED' || message.kind === 'SESSION_ENDED') {
+      setReconcileRequest((current) => current + 1);
     }
   }, []);
 
   useEffect(() => {
-    clockOffsetRef.current = clock.offsetMs;
-  }, [clock.offsetMs]);
+    tRef.current = t;
+  }, [t]);
 
-  const { status: realtimeStatus, send } = useSessionRealtime({ sessionId, role: 'client', onMessage: handleMessage });
+  const { status: realtimeStatus, connectionEpoch, send } = useSessionRealtime({
+    sessionId,
+    channelKey: validatedChannelKey ?? undefined,
+    role: preview ? undefined : 'client',
+    onMessage: handleMessage,
+    onTherapistPresenceChange: setTherapistConnected,
+  });
+
   const joyConWebHid = useJoyConWebHid();
   const activeState = state ?? fallbackState;
+  const clockSyncBlocked = !clock.isSynced || Boolean(clock.error);
+  const therapistHeartbeatMs = therapistHeartbeatAt === null ? Number.NaN : Date.parse(therapistHeartbeatAt);
+  const therapistHeartbeatAgeMs =
+    getServerNowMs(clock.offsetMs) + heartbeatExpiryTick * 0 - therapistHeartbeatMs;
+  const therapistHeartbeatFresh =
+    preview ||
+    (Number.isFinite(therapistHeartbeatMs) &&
+      therapistHeartbeatAgeMs >= -HEARTBEAT_FUTURE_TOLERANCE_MS &&
+      therapistHeartbeatAgeMs <= THERAPIST_HEARTBEAT_STALE_MS);
+  const roundDeadlineReached =
+    state !== null &&
+    clock.isSynced &&
+    !clock.error &&
+    state?.status === 'running' &&
+    typeof state.roundDurationMs === 'number' &&
+    state.roundDurationMs > 0 &&
+    getElapsedMs(state, getServerNowMs(clock.offsetMs)) >= state.roundDurationMs;
+  const baseOutputSuppressed =
+    sessionEnded ||
+    locallyStopped ||
+    roundExpired ||
+    roundDeadlineReached ||
+    clockSyncBlocked ||
+    Boolean(syncError) ||
+    realtimeStatus !== 'connected' ||
+    verifiedConnectionEpoch !== connectionEpoch ||
+    verifiedReconcileRequest !== reconcileRequest ||
+    (!preview && (!therapistConnected || !therapistHeartbeatFresh));
+  const audioInputState = useMemo<SessionState>(() => {
+    if (!baseOutputSuppressed && !preview) {
+      return activeState;
+    }
+
+    return {
+      ...activeState,
+      status: baseOutputSuppressed ? 'stopped' : activeState.status,
+      audio: { ...activeState.audio, enabled: false },
+    };
+  }, [activeState, baseOutputSuppressed, preview]);
+  const audioOutput = useAudioBls({
+    state: audioInputState,
+    serverTimeOffsetMs: clock.offsetMs,
+    unlocked: audioUnlocked,
+    role: 'client',
+  });
+  const audioReady = audioUnlocked && audioOutput.isUnlocked;
+  const audioGateRequired = !preview && activeState.audio.enabled && !audioReady;
+  const outputSuppressed = baseOutputSuppressed || audioGateRequired;
+  const manualTactileTestAvailable =
+    !outputSuppressed && activeState.status !== 'running' && activeState.status !== 'stopping';
+  const outputState = useMemo<SessionState>(() => {
+    if (!outputSuppressed && !preview) {
+      const visualActive = activeState.status === 'running' || activeState.status === 'stopping';
+      return {
+        ...activeState,
+        visual: {
+          ...activeState.visual,
+          enabled: activeState.visual.enabled && visualActive,
+        },
+      };
+    }
+
+    return {
+      ...activeState,
+      status: outputSuppressed ? 'stopped' : activeState.status,
+      visual: outputSuppressed ? { ...activeState.visual, enabled: false } : activeState.visual,
+      audio: { ...activeState.audio, enabled: false },
+      tactile: { ...activeState.tactile, enabled: false },
+    };
+  }, [activeState, outputSuppressed, preview]);
   const tactileIntensity = activeState.tactile.intensity ?? 'medium';
   const tactileOutput = useJoyConTactileOutput({
-    state: activeState,
+    state: outputState,
     serverTimeOffsetMs: clock.offsetMs,
     intensity: tactileIntensity,
-    enabled: joyConWebHid.supported && joyConWebHid.leftConnected && joyConWebHid.rightConnected,
+    enabled: !preview && joyConWebHid.supported && joyConWebHid.leftConnected && joyConWebHid.rightConnected,
   });
   const joyConStatus = useMemo<JoyConClientStatus>(
     () => ({
@@ -76,11 +162,22 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
       tactileOutput,
     ],
   );
-  useAudioBls({ state: state ?? fallbackState, serverTimeOffsetMs: clock.offsetMs, unlocked: audioUnlocked, role: 'client' });
+  const joyConStatusRef = useRef(joyConStatus);
+  const clockOffsetMsRef = useRef(clock.offsetMs);
+  joyConStatusRef.current = joyConStatus;
+  clockOffsetMsRef.current = clock.offsetMs;
+
+  useEffect(() => {
+    if (!preview && outputSuppressed) {
+      void joyConWebHid.neutral();
+    }
+  }, [joyConWebHid.neutral, outputSuppressed, preview, sessionEnded]);
+
+  const audioGateOpen = !isFullscreen && !locallyStopped && audioGateRequired;
 
   useEffect(() => {
     if (!token) {
-      setError(t('client.missingToken'));
+      setFatalError(tRef.current('client.missingToken'));
       return;
     }
 
@@ -95,10 +192,19 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
           return;
         }
 
+        if (session.role !== 'client') {
+          setFatalError(tRef.current('client.permissions'));
+          return;
+        }
+
         setState(session.state);
+        setSessionEnded(Boolean(session.endedAt) || session.state.status === 'ended');
+        setTherapistHeartbeatAt(session.therapistHeartbeatAt);
+        setTherapistConnected(false);
+        setValidatedChannelKey(sessionToken);
       } catch (nextError) {
         if (active) {
-          setError(nextError instanceof Error ? nextError.message : t('session.loadError'));
+          setFatalError(nextError instanceof Error ? nextError.message : tRef.current('session.loadError'));
         }
       }
     }
@@ -108,58 +214,156 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
     return () => {
       active = false;
     };
-  }, [sessionId, t, token]);
+  }, [sessionId, token]);
 
   useEffect(() => {
-    if (realtimeStatus !== 'connected') {
+    if (!token || !validatedChannelKey || realtimeStatus !== 'connected') {
+      return;
+    }
+
+    let active = true;
+
+    let inFlight = false;
+    const reconcile = () => {
+      if (inFlight) {
+        return;
+      }
+
+      inFlight = true;
+      void getBlsSession(sessionId, token)
+        .then((session) => {
+          if (!active || session.role !== 'client') {
+            return;
+          }
+
+          setState(session.state);
+          setSessionEnded(Boolean(session.endedAt) || session.state.status === 'ended');
+          setTherapistHeartbeatAt(session.therapistHeartbeatAt);
+          setSyncError(null);
+          setVerifiedConnectionEpoch(connectionEpoch);
+          setVerifiedReconcileRequest(reconcileRequest);
+        })
+        .catch(() => {
+          if (active) {
+            setSyncError(tRef.current('client.syncError'));
+          }
+        })
+        .finally(() => {
+          inFlight = false;
+        });
+    };
+
+    reconcile();
+    const interval = window.setInterval(reconcile, 5_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [
+    connectionEpoch,
+    realtimeStatus,
+    reconcileRequest,
+    sessionId,
+    token,
+    validatedChannelKey,
+  ]);
+
+  useEffect(() => {
+    if (preview || !validatedChannelKey || realtimeStatus !== 'connected') {
       return;
     }
 
     const sendReady = () => {
-      void send({ kind: 'CLIENT_READY', emittedAtMs: getServerNowMs(clock.offsetMs) });
+      void send({ kind: 'CLIENT_READY', emittedAtMs: getServerNowMs(clock.offsetMs) }).catch(() => {
+        setSyncError(tRef.current('client.syncError'));
+      });
     };
 
     sendReady();
     const interval = window.setInterval(sendReady, 5000);
     return () => window.clearInterval(interval);
-  }, [clock.offsetMs, realtimeStatus, send]);
-
-  const notifyClientLeft = useCallback(() => {
-    void send({ kind: 'CLIENT_LEFT', emittedAtMs: getServerNowMs(clockOffsetRef.current) });
-  }, [send]);
+  }, [clock.offsetMs, preview, realtimeStatus, send, validatedChannelKey]);
 
   useEffect(() => {
-    if (realtimeStatus !== 'connected') {
-      return;
-    }
-
-    const handleLeaving = () => {
-      notifyClientLeft();
-    };
-
-    window.addEventListener('pagehide', handleLeaving);
-    window.addEventListener('beforeunload', handleLeaving);
-
-    return () => {
-      window.removeEventListener('pagehide', handleLeaving);
-      window.removeEventListener('beforeunload', handleLeaving);
-      notifyClientLeft();
-    };
-  }, [notifyClientLeft, realtimeStatus]);
-
-  useEffect(() => {
-    if (realtimeStatus !== 'connected') {
+    if (preview || !validatedChannelKey || realtimeStatus !== 'connected') {
       return;
     }
 
     const sendJoyConStatus = () => {
-      void send({ kind: 'JOYCON_STATUS', status: joyConStatus, emittedAtMs: getServerNowMs(clock.offsetMs) });
+      void send({
+        kind: 'JOYCON_STATUS',
+        status: joyConStatusRef.current,
+        emittedAtMs: getServerNowMs(clockOffsetMsRef.current),
+      }).catch(() => {
+        setSyncError(tRef.current('client.syncError'));
+      });
     };
 
     sendJoyConStatus();
     const interval = window.setInterval(sendJoyConStatus, 5000);
     return () => window.clearInterval(interval);
-  }, [clock.offsetMs, joyConStatus, realtimeStatus, send]);
+  }, [preview, realtimeStatus, send, validatedChannelKey]);
+
+  useEffect(() => {
+    if (
+      preview ||
+      !clock.isSynced ||
+      clock.error ||
+      !Number.isFinite(therapistHeartbeatMs)
+    ) {
+      return;
+    }
+
+    const remainingMs =
+      therapistHeartbeatMs + THERAPIST_HEARTBEAT_STALE_MS - getServerNowMs(clock.offsetMs);
+
+    if (remainingMs <= 0) {
+      return;
+    }
+
+    const timeout = window.setTimeout(
+      () => setHeartbeatExpiryTick((current) => current + 1),
+      remainingMs + 25,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [
+    clock.error,
+    clock.isSynced,
+    clock.offsetMs,
+    heartbeatExpiryTick,
+    preview,
+    therapistHeartbeatAt,
+    therapistHeartbeatMs,
+  ]);
+
+  useEffect(() => {
+    const durationMs = state?.roundDurationMs;
+
+    if (
+      !state ||
+      !clock.isSynced ||
+      clock.error ||
+      state.status !== 'running' ||
+      durationMs === null ||
+      durationMs === undefined ||
+      durationMs <= 0
+    ) {
+      setRoundExpired(false);
+      return;
+    }
+
+    const remainingMs = durationMs - getElapsedMs(state, getServerNowMs(clock.offsetMs));
+
+    if (remainingMs <= 0) {
+      setRoundExpired(true);
+      return;
+    }
+
+    setRoundExpired(false);
+    const timeout = window.setTimeout(() => setRoundExpired(true), remainingMs + 25);
+    return () => window.clearTimeout(timeout);
+  }, [clock.error, clock.isSynced, clock.offsetMs, state]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -172,20 +376,49 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
   }, []);
 
   useEffect(() => {
-    if (state?.tactile.enabled && !hasShownTactilePanel) {
-      setHasShownTactilePanel(true);
-    }
-  }, [hasShownTactilePanel, state?.tactile.enabled]);
-
-  const enterFullscreen = useCallback(() => {
-    const requestFullscreen = document.documentElement.requestFullscreen;
-
-    if (!requestFullscreen) {
+    if (!isFullscreen || !activeState.audio.enabled || audioReady) {
       return;
     }
 
-    void requestFullscreen.call(document.documentElement).catch(() => undefined);
-  }, []);
+    setFullscreenError(t('client.fullscreenAudioEnabled'));
+    const requestExit = document.exitFullscreen;
+
+    if (!requestExit) {
+      setFullscreenError(t('client.fullscreenAudioExitFailed'));
+      return;
+    }
+
+    let active = true;
+    void requestExit.call(document).catch(() => {
+      if (active) {
+        setFullscreenError(t('client.fullscreenAudioExitFailed'));
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [activeState.audio.enabled, audioReady, isFullscreen, t]);
+
+  const enterFullscreen = useCallback(() => {
+    setFullscreenError(null);
+
+    if (activeState.audio.enabled && !audioReady) {
+      setFullscreenError(t('client.fullscreenAudioRequired'));
+      return;
+    }
+
+    const requestFullscreen = document.documentElement.requestFullscreen;
+
+    if (!requestFullscreen) {
+      setFullscreenError(t('client.fullscreenUnavailable'));
+      return;
+    }
+
+    void requestFullscreen.call(document.documentElement).catch(() => {
+      setFullscreenError(t('client.fullscreenFailed'));
+    });
+  }, [activeState.audio.enabled, audioReady, t]);
 
   const exitFullscreen = useCallback(() => {
     if (!document.exitFullscreen) {
@@ -195,8 +428,20 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
     void document.exitFullscreen().catch(() => undefined);
   }, []);
 
-  if (error) {
-    return <ErrorView message={error} />;
+  const handleLocalOutputToggle = () => {
+    setLocallyStopped((current) => !current);
+  };
+
+  const handleUnlockAudio = async () => {
+    const unlocked = await audioOutput.unlock();
+    setAudioUnlocked(unlocked);
+    if (unlocked) {
+      setFullscreenError(null);
+    }
+  };
+
+  if (fatalError) {
+    return <ErrorView message={fatalError} />;
   }
 
   if (!state || !token) {
@@ -209,39 +454,94 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
 
   return (
     <main className="client-page">
-      <StimulusStage state={state} serverTimeOffsetMs={clock.offsetMs} className="client-stage" />
+      <StimulusStage state={outputState} serverTimeOffsetMs={clock.offsetMs} className="client-stage" />
 
-      {isFullscreen ? (
-        <button className="secondary-button client-fullscreen-exit" type="button" onClick={exitFullscreen}>
-          {t('client.exitFullscreen')}
+      <div
+        className={`client-command-dock${isFullscreen ? ' is-fullscreen' : ''}`}
+        aria-label={t('client.controls')}
+        aria-hidden={audioGateOpen || undefined}
+        inert={audioGateOpen || undefined}
+      >
+        {!isFullscreen ? (
+          <>
+            <span className={`client-status ${realtimeStatus === 'connected' ? 'ok' : 'bad'}`} role="status">
+              {realtimeStatus === 'connected' ? t('common.connected') : t('common.reconnecting')}
+            </span>
+            <button className="secondary-button" type="button" onClick={() => void handleUnlockAudio()}>
+              {audioReady ? t('client.audioEnabled') : t('client.enableAudio')}
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={activeState.audio.enabled && !audioReady}
+              onClick={enterFullscreen}
+            >
+              {t('client.fullscreen')}
+            </button>
+            <LanguageToggle />
+          </>
+        ) : (
+          <button className="secondary-button" type="button" onClick={exitFullscreen}>
+            {t('client.exitFullscreen')}
+          </button>
+        )}
+        <button
+          className={locallyStopped ? 'primary-button' : 'danger-button'}
+          type="button"
+          aria-pressed={locallyStopped}
+          onClick={handleLocalOutputToggle}
+        >
+          {locallyStopped ? t('client.localResume') : t('client.localStop')}
         </button>
-      ) : (
-        <div className="client-topbar">
-          <span className={`client-status ${realtimeStatus === 'connected' ? 'ok' : 'bad'}`}>
-            {realtimeStatus === 'connected' ? t('common.connected') : t('common.reconnecting')}
-          </span>
-          <button className="secondary-button" type="button" onClick={() => setAudioUnlocked(true)}>
-            {audioUnlocked ? t('client.audioEnabled') : t('client.enableAudio')}
-          </button>
-          <button className="secondary-button" type="button" onClick={enterFullscreen}>
-            {t('client.fullscreen')}
-          </button>
-          <LanguageToggle />
-        </div>
-      )}
+      </div>
 
-      {!isFullscreen && !audioUnlocked && state.audio.enabled ? (
-        <div className="join-audio-panel panel">
-          <h1>{t('client.enableAudioTitle')}</h1>
-          <p>{t('client.enableAudioBody')}</p>
-          <button className="primary-button" type="button" onClick={() => setAudioUnlocked(true)}>
-            {t('client.enterEnableAudio')}
-          </button>
+      {clockSyncBlocked || syncError || fullscreenError || audioOutput.error || roundExpired || roundDeadlineReached || (!preview && (!therapistConnected || !therapistHeartbeatFresh)) ? (
+        <div className="client-inline-alert" role="alert">
+          {roundExpired || roundDeadlineReached
+            ? t('client.roundExpired')
+            : clockSyncBlocked
+              ? t('client.clockSyncError')
+            : !preview && (!therapistConnected || !therapistHeartbeatFresh)
+              ? t('client.controllerAway')
+              : syncError ?? fullscreenError ?? audioOutput.error}
         </div>
       ) : null}
 
-      {!isFullscreen && state.tactile.enabled ? (
-        <div className="client-tactile-panel">
+      {audioGateOpen ? (
+        <div className="join-audio-backdrop">
+          <section
+            className="join-audio-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="enable-audio-title"
+            aria-describedby="enable-audio-description"
+          >
+            <h1 id="enable-audio-title">{t('client.enableAudioTitle')}</h1>
+            <p id="enable-audio-description">{t('client.enableAudioBody')}</p>
+            {audioOutput.error ? <div className="error-box" role="alert">{audioOutput.error}</div> : null}
+            <div className="join-audio-actions">
+              <button className="primary-button" type="button" onClick={() => void handleUnlockAudio()}>
+                {t('client.enterEnableAudio')}
+              </button>
+              <button
+                className="danger-button"
+                type="button"
+                disabled={locallyStopped}
+                onClick={() => setLocallyStopped(true)}
+              >
+                {t('client.localStop')}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {!preview && !isFullscreen && state.tactile.enabled ? (
+        <div
+          className="client-tactile-panel"
+          aria-hidden={audioGateOpen || undefined}
+          inert={audioGateOpen || undefined}
+        >
           <TactilePanel
             tactile={state.tactile}
             webHidSupported={joyConWebHid.supported}
@@ -252,11 +552,13 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
             error={joyConWebHid.error}
             outputStatus={tactileOutput}
             panelCollapsible
-            defaultPanelCollapsed={hasShownTactilePanel}
+            defaultPanelCollapsed={false}
             onRequestDevices={() => void joyConWebHid.requestDevices()}
             onDisconnectDevices={() => void joyConWebHid.disconnectDevices()}
             onRefresh={() => void joyConWebHid.refresh()}
-            onTestPulse={(options) => void joyConWebHid.testPulse(options)}
+            onTestPulse={
+              manualTactileTestAvailable ? (options) => void joyConWebHid.testPulse(options) : undefined
+            }
           />
         </div>
       ) : null}
@@ -267,6 +569,7 @@ export function ClientSessionPage({ sessionId, token }: ClientSessionPageProps) 
 const fallbackState: SessionState = {
   version: 0,
   status: 'idle',
+  roundDurationMs: null,
   startedAtMs: null,
   pausedAtMs: null,
   elapsedBeforePauseMs: 0,

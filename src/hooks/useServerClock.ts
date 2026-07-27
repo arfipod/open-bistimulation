@@ -16,6 +16,7 @@ export function useServerClock() {
       setIsSynced(true);
       setError(null);
     } catch (nextError) {
+      setIsSynced(false);
       setError(nextError instanceof Error ? nextError.message : 'Could not sync server clock.');
     }
   }, []);

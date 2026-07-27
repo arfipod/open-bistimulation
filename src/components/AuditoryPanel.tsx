@@ -26,6 +26,7 @@ export function AuditoryPanel({
 }: AuditoryPanelProps) {
   const { t } = useI18n();
   const panelBodyId = useId();
+  const panelTitleId = useId();
   const [panelCollapsed, setPanelCollapsed] = useState(Boolean(panelCollapsible && (defaultPanelCollapsed || autoCollapse)));
 
   useEffect(() => {
@@ -35,13 +36,15 @@ export function AuditoryPanel({
   }, [autoCollapse, defaultPanelCollapsed, panelCollapsible]);
 
   return (
-    <section className={`control-panel ${panelCollapsed ? 'is-collapsed' : ''}`}>
+    <section className={`control-panel ${panelCollapsed ? 'is-collapsed' : ''}`} aria-labelledby={panelTitleId}>
       <header className="panel-header">
-        <h2>{t('audio.title')}</h2>
+        <h2 id={panelTitleId}>{t('audio.title')}</h2>
         <div className="panel-header-actions">
           <label className="switch">
             <input
               type="checkbox"
+              role="switch"
+              aria-labelledby={panelTitleId}
               checked={audio.enabled}
               onChange={(event) => onChange({ ...audio, enabled: event.target.checked })}
             />
@@ -67,12 +70,13 @@ export function AuditoryPanel({
 
       <div className="field-group">
         <label>{t('audio.sound')}</label>
-        <div className="segmented-grid">
+        <div className="segmented-grid" role="group" aria-label={t('audio.sound')}>
           {sounds.map((sound) => (
             <button
               key={sound.value}
               type="button"
               className={audio.sound === sound.value ? 'is-selected' : ''}
+              aria-pressed={audio.sound === sound.value}
               onClick={() => onChange({ ...audio, sound: sound.value })}
             >
               {t(sound.labelKey)}

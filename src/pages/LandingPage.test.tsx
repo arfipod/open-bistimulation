@@ -30,7 +30,7 @@ describe('LandingPage', () => {
 
     renderWithI18n(<LandingPage />);
 
-    expect(screen.getByText(/Supabase environment variables are missing/)).toBeInTheDocument();
+    expect(screen.getByText(/Session creation is unavailable on this deployment/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create BLS session' })).toBeDisabled();
   });
 

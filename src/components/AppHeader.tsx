@@ -17,13 +17,18 @@ export function AppHeader({ title = 'open-bistimulation', connectionLabel, conne
     <header className="app-header">
       <a className="brand" href="/" aria-label={t('app.brandAria')}>
         <img className="brand-icon" src="/app-icon.svg" alt="" aria-hidden="true" />
-        <span>open</span>-bistimulation
+        <span className="brand-wordmark">
+          <span>open</span>
+          <span>bistimulation</span>
+        </span>
       </a>
       {title ? <strong className="header-title">{title}</strong> : null}
       <div className="header-spacer" />
-      {connectionLabel ? <ConnectionBadge connected={Boolean(connected)} label={connectionLabel} /> : null}
-      {actions}
-      <LanguageToggle />
+      <div className="header-actions">
+        {connectionLabel ? <ConnectionBadge connected={Boolean(connected)} label={connectionLabel} /> : null}
+        {actions}
+        <LanguageToggle />
+      </div>
     </header>
   );
 }

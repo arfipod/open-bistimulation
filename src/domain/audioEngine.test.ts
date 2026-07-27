@@ -45,6 +45,7 @@ class FakeBiquadFilterNode {
 class FakeAudioContext {
   static instances: FakeAudioContext[] = [];
 
+  state: AudioContextState = 'suspended';
   currentTime = 3;
   sampleRate = 1_000;
   destination = {};
@@ -54,8 +55,12 @@ class FakeAudioContext {
   sources: FakeBufferSourceNode[] = [];
   filters: FakeBiquadFilterNode[] = [];
   buffers: Float32Array[] = [];
-  resume = vi.fn();
-  close = vi.fn();
+  resume = vi.fn(async () => {
+    this.state = 'running';
+  });
+  close = vi.fn(async () => {
+    this.state = 'closed';
+  });
 
   constructor() {
     FakeAudioContext.instances.push(this);
@@ -130,13 +135,22 @@ describe('audio engine', () => {
     expect(() => createAudioEngine()).toThrow('Web Audio API is not supported by this browser.');
   });
 
-  it('plays beeps with clamped volume and side panning', () => {
+  it('unlocks once from a user gesture before playing beeps', async () => {
     const engine = createAudioEngine();
     const context = FakeAudioContext.instances[0];
 
+    expect(engine.isUnlocked()).toBe(false);
+    expect(() => engine.play('beep', 'left', 2)).toThrow('Audio output is locked');
+    expect(context.oscillators).toHaveLength(0);
+
+    const unlockAttempt = engine.unlock();
+    expect(context.resume).toHaveBeenCalledTimes(1);
+    await unlockAttempt;
+    await engine.unlock();
     engine.play('beep', 'left', 2);
 
     expect(context.resume).toHaveBeenCalledTimes(1);
+    expect(engine.isUnlocked()).toBe(true);
     expect(context.oscillators).toHaveLength(1);
     expect(context.oscillators[0].type).toBe('sine');
     expect(context.oscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(760, 3);
@@ -145,14 +159,15 @@ describe('audio engine', () => {
     expect(context.oscillators[0].stop).toHaveBeenCalledWith(3.1);
   });
 
-  it('plays bells and heartbeats with their expected envelopes', () => {
+  it('plays bells and heartbeats with their expected envelopes after unlocking', async () => {
     const engine = createAudioEngine();
     const context = FakeAudioContext.instances[0];
 
+    await engine.unlock();
     engine.play('bell', 'right', 0.5);
     engine.play('heartbeat', 'left', 0.75);
 
-    expect(context.resume).toHaveBeenCalledTimes(2);
+    expect(context.resume).toHaveBeenCalledTimes(1);
     expect(context.oscillators).toHaveLength(3);
     expect(context.oscillators[0].type).toBe('triangle');
     expect(context.oscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(1320, 3.04);
@@ -161,12 +176,14 @@ describe('audio engine', () => {
     expect(context.panners.map((panner) => panner.pan.value)).toEqual([1, -1, -1]);
   });
 
-  it('plays snap sounds through a high-pass filter and disposes the context', () => {
+  it('plays snap sounds through a high-pass filter and disposes the context', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.75);
     const engine = createAudioEngine();
     const context = FakeAudioContext.instances[0];
 
+    await engine.unlock();
     engine.play('snap', 'right', -1);
+    engine.dispose();
     engine.dispose();
 
     expect(context.sources).toHaveLength(1);
@@ -177,5 +194,25 @@ describe('audio engine', () => {
     expect(context.buffers[0][0]).toBe(0.5);
     expect(context.panners[0].pan.value).toBe(1);
     expect(context.close).toHaveBeenCalledTimes(1);
+    expect(engine.isUnlocked()).toBe(false);
+    await expect(engine.unlock()).rejects.toThrow('Audio output has already been closed.');
+  });
+
+  it('surfaces browser unlock rejection without pretending audio is ready', async () => {
+    const engine = createAudioEngine();
+    const context = FakeAudioContext.instances[0];
+    context.resume.mockRejectedValueOnce(new Error('Audio permission was blocked.'));
+
+    await expect(engine.unlock()).rejects.toThrow('Audio permission was blocked.');
+    expect(engine.isUnlocked()).toBe(false);
+  });
+
+  it('rejects unlock when resume resolves but the context stays suspended', async () => {
+    const engine = createAudioEngine();
+    const context = FakeAudioContext.instances[0];
+    context.resume.mockResolvedValueOnce(undefined);
+
+    await expect(engine.unlock()).rejects.toThrow('The browser did not allow audio output.');
+    expect(engine.isUnlocked()).toBe(false);
   });
 });

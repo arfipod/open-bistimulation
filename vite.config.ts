@@ -19,6 +19,16 @@ export default defineConfig(({ mode }) => {
       __SUPABASE_URL__: JSON.stringify(supabaseUrl),
       __SUPABASE_ANON_KEY__: JSON.stringify(supabaseAnonKey),
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom'],
+            'supabase-vendor': ['@supabase/supabase-js'],
+          },
+        },
+      },
+    },
     test: {
       environment: 'jsdom',
       setupFiles: './src/test/setup.ts',

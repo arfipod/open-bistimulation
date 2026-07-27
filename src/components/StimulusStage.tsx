@@ -17,6 +17,8 @@ export function StimulusStage({ state, serverTimeOffsetMs, className = '', label
   useEffect(() => {
     let frame = 0;
     let cancelled = false;
+    const shouldAnimate =
+      state.visual.enabled && (state.status === 'running' || state.status === 'stopping');
 
     const render = () => {
       const stage = stageRef.current;
@@ -40,7 +42,7 @@ export function StimulusStage({ state, serverTimeOffsetMs, className = '', label
         dot.classList.toggle('is-emoji', Boolean(stimulusContent));
       }
 
-      if (!cancelled) {
+      if (!cancelled && shouldAnimate) {
         frame = window.requestAnimationFrame(render);
       }
     };

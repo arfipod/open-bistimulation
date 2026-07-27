@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './app/App';
 import { LanguageProvider } from './lib/i18n';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
 import './styles/globals.css';
 
 const rootElement = document.getElementById('root');
@@ -13,7 +14,9 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <LanguageProvider>
-      <App />
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
     </LanguageProvider>
   </StrictMode>,
 );

@@ -41,24 +41,68 @@ export function LandingPage() {
     <>
       <AppHeader title="" />
       <main className="landing-page">
-        <section className="hero panel">
-          <span className="eyebrow">{t('landing.eyebrow')}</span>
-          <h1>Open Bistimulation</h1>
-          <p>{t('landing.description')}</p>
+        <section className="hero">
+          <div className="hero-copy">
+            <h1>
+              <span>Open</span>
+              Bistimulation
+            </h1>
+            <p className="hero-description">{t('landing.description')}</p>
+            <p className="landing-context">{t('landing.eyebrow')}</p>
 
-          {!isSupabaseConfigured ? <div className="warning-box">{t('landing.supabaseWarning')}</div> : null}
+            {!isSupabaseConfigured ? (
+              <div className="warning-box" role="status">
+                {t('landing.supabaseWarning')}
+              </div>
+            ) : null}
 
-          {error ? <div className="error-box">{error}</div> : null}
+            {error ? <div className="error-box" role="alert">{error}</div> : null}
 
-          <button className="primary-button hero-button" type="button" onClick={handleCreate} disabled={isCreating || !isSupabaseConfigured}>
-            {isCreating ? t('landing.creating') : t('landing.create')}
-          </button>
+            <button className="primary-button hero-button" type="button" onClick={handleCreate} disabled={isCreating || !isSupabaseConfigured}>
+              {isCreating ? t('landing.creating') : t('landing.create')}
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
 
+          <div className="signal-figure" aria-hidden="true">
+            <div className="signal-axis">
+              <span className="signal-end signal-end-left">L</span>
+              <span className="signal-line" />
+              <span className="signal-pulse signal-pulse-left" />
+              <span className="signal-center" />
+              <span className="signal-pulse signal-pulse-right" />
+              <span className="signal-end signal-end-right">R</span>
+            </div>
+            <div className="signal-readout">
+              <span>{t('landing.visualTitle')}</span>
+              <span>{t('landing.audioTitle')}</span>
+              <span>{t('landing.tactileTitle')}</span>
+            </div>
+          </div>
+        </section>
 
-          <section className="public-content" aria-labelledby="landing-public-content-title">
+        <section className="landing-details">
+          <div className="landing-information">
+            <section className="public-content" aria-labelledby="landing-public-content-title">
             <h2 id="landing-public-content-title">{t('landing.publicContentTitle')}</h2>
             <p>{t('landing.publicContentBody')}</p>
-          </section>
+            </section>
+
+            <div className="modality-list">
+              <article>
+                <strong>{t('landing.visualTitle')}</strong>
+                <span>{t('landing.visualText')}</span>
+              </article>
+              <article>
+                <strong>{t('landing.audioTitle')}</strong>
+                <span>{t('landing.audioText')}</span>
+              </article>
+              <article>
+                <strong>{t('landing.tactileTitle')}</strong>
+                <span>{t('landing.tactileText')}</span>
+              </article>
+            </div>
+          </div>
 
           <aside className="legal-disclaimer" aria-labelledby="landing-legal-title">
             <strong id="landing-legal-title">{t('landing.disclaimerTitle')}</strong>
@@ -70,21 +114,6 @@ export function LandingPage() {
               <li>{t('landing.disclaimerIndependent')}</li>
             </ul>
           </aside>
-
-          <div className="hero-grid">
-            <article>
-              <strong>{t('landing.visualTitle')}</strong>
-              <span>{t('landing.visualText')}</span>
-            </article>
-            <article>
-              <strong>{t('landing.audioTitle')}</strong>
-              <span>{t('landing.audioText')}</span>
-            </article>
-            <article>
-              <strong>{t('landing.tactileTitle')}</strong>
-              <span>{t('landing.tactileText')}</span>
-            </article>
-          </div>
         </section>
       </main>
     </>

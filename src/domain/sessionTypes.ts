@@ -38,6 +38,8 @@ export interface TactileSettings {
 export interface SessionState {
   version: number;
   status: SessionStatus;
+  /** Optional maximum accumulated running time for the current round. */
+  roundDurationMs?: number | null;
   /** Server-clock timestamp used as the origin for the current running segment. */
   startedAtMs: number | null;
   /** Server-clock timestamp of the latest pause. */
@@ -69,6 +71,7 @@ export interface SessionRecord {
   preferences: SessionPreferences;
   expiresAt: string | null;
   endedAt: string | null;
+  therapistHeartbeatAt: string | null;
 }
 
 export interface ClientStatus {
@@ -142,4 +145,5 @@ export interface RouteInfo {
   page: 'landing' | 'therapist' | 'client' | 'legal' | 'privacy' | 'terms' | 'disclaimer' | 'not-found';
   sessionId?: string;
   token?: string;
+  preview?: boolean;
 }

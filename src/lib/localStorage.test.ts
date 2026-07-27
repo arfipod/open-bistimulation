@@ -39,8 +39,22 @@ describe('localStorage helpers', () => {
     expect(loadLocalPreferences()).toEqual(DEFAULT_PREFERENCES);
   });
 
+  it('returns defaults when browser storage is unavailable', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+
+    expect(loadLocalPreferences()).toEqual(DEFAULT_PREFERENCES);
+  });
+
   it('returns defaults when stored preferences are malformed', () => {
     localStorage.setItem(preferencesKey, '{bad-json');
+
+    expect(loadLocalPreferences()).toEqual(DEFAULT_PREFERENCES);
+  });
+
+  it('returns defaults when stored preferences contain invalid values', () => {
+    localStorage.setItem(preferencesKey, JSON.stringify({ visual: { speed: 'fast' } }));
 
     expect(loadLocalPreferences()).toEqual(DEFAULT_PREFERENCES);
   });
@@ -79,6 +93,14 @@ describe('localStorage helpers', () => {
     expect(JSON.parse(localStorage.getItem(preferencesKey) ?? '')).toEqual(preferences);
   });
 
+  it('treats blocked preference storage as optional', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+
+    expect(() => saveLocalPreferences(makePreferences())).not.toThrow();
+  });
+
   it('returns an existing local id before creating a new one', () => {
     localStorage.setItem('device-id', 'current-device');
     const randomUUID = vi.spyOn(crypto, 'randomUUID');
@@ -92,6 +114,18 @@ describe('localStorage helpers', () => {
 
     expect(getOrCreateLocalId('device-id')).toBe('00000000-0000-4000-8000-000000000000');
     expect(localStorage.getItem('device-id')).toBe('00000000-0000-4000-8000-000000000000');
+  });
+
+  it('returns an ephemeral local id when browser storage is blocked', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001');
+
+    expect(getOrCreateLocalId('device-id')).toBe('00000000-0000-4000-8000-000000000001');
   });
 
   it('loads and saves the local Joy-Con bridge URL', () => {
@@ -110,5 +144,17 @@ describe('localStorage helpers', () => {
 
     localStorage.setItem(joyConBridgeUrlKey, 'not-a-url');
     expect(getJoyConBridgeUrl()).toBe(DEFAULT_JOYCON_BRIDGE_URL);
+  });
+
+  it('falls back gracefully when bridge URL storage is blocked', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+
+    expect(getJoyConBridgeUrl()).toBe(DEFAULT_JOYCON_BRIDGE_URL);
+    expect(() => saveJoyConBridgeUrl('http://localhost:5174')).not.toThrow();
   });
 });

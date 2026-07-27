@@ -12,13 +12,15 @@ const translations = {
     'app.languageLabel': 'English',
     'app.notFoundTitle': 'Route not found',
     'app.notFoundMessage': 'Check the link or go back home.',
+    'app.unexpectedErrorTitle': 'The app hit an unexpected problem',
+    'app.unexpectedErrorMessage': 'Output has been stopped. Return home and open the session link again.',
     'footer.navLabel': 'Legal and project links',
     'footer.legal': 'Legal',
     'footer.privacy': 'Privacy',
     'footer.terms': 'Terms',
     'footer.disclaimer': 'Disclaimer',
     'footer.github': 'GitHub',
-    'footer.credit': 'Made with 💙 by arrf - laus deo virginique matri',
+    'footer.credit': 'Made with a blue heart by arrf — laus deo virginique matri',
     'common.backHome': 'Back home',
     'common.copy': 'Copy',
     'common.copied': 'Copied',
@@ -30,6 +32,7 @@ const translations = {
     'common.left': 'left',
     'common.right': 'right',
     'common.loading': 'Loading...',
+    'common.cancel': 'Cancel',
     'common.expandPanel': 'Expand panel',
     'common.collapsePanel': 'Collapse panel',
     'error.defaultTitle': 'Could not open the session',
@@ -41,8 +44,7 @@ const translations = {
     'landing.publicContentTitle': 'What this tool provides',
     'landing.publicContentBody':
       'Open Bistimulation is free independent software for browser-based bilateral sensory cues. It provides configurable visual, auditory, and optional tactile cues coordinated by a controller for a participant. It is supplied without professional services, medical services, warranties, or outcome guarantees.',
-    'landing.supabaseWarning':
-      'Supabase environment variables are missing. Copy .env.example to .env.local and fill in SUPABASE_URL and SUPABASE_ANON_KEY.',
+    'landing.supabaseWarning': 'Session creation is unavailable on this deployment. Please contact the site operator.',
     'landing.create': 'Create BLS session',
     'landing.creating': 'Creating session...',
     'landing.disclaimerTitle': 'Legal and safety notice',
@@ -72,8 +74,25 @@ const translations = {
     'session.therapistPermissions': 'This link does not have controller permissions.',
     'session.loadError': 'Could not load the session.',
     'session.saveStateError': 'Could not save the state.',
+    'session.syncError': 'The live connection could not be reconciled. Controls remain available; please try again.',
+    'session.heartbeatError': 'Controller presence could not be verified. Participant output will stop unless it recovers.',
+    'session.concurrentUpdate':
+      'This session changed in another controller. The latest saved state has been restored; review it before trying again.',
+    'session.startError': 'Could not start the round.',
+    'session.pauseError': 'Could not pause the round.',
+    'session.resumeError': 'Could not resume the round.',
+    'session.stopError': 'Could not stop the round.',
+    'session.resetError': 'Could not reset the counters.',
+    'session.preferencesError': 'Could not save the preferences.',
+    'session.endError': 'Could not end the session.',
+    'session.endConfirmTitle': 'End this session?',
+    'session.endConfirmBody': 'All participant output will stop and this invitation link will no longer work.',
+    'session.endConfirmAction': 'End session',
+    'session.endedTitle': 'Session ended',
+    'session.endedMessage': 'This session was ended from another controller.',
     'session.backendTokenError': 'The backend did not return a controller token.',
     'session.createError': 'Could not create session.',
+    'controls.sessionActions': 'Round controls and status',
     'controls.time': 'Time',
     'controls.passes': 'Passes',
     'controls.sets': 'Sets',
@@ -164,14 +183,29 @@ const translations = {
     'tactile.outputError': 'Tactile error: {error}',
     'invite.eyebrow': 'Participant',
     'invite.title': 'Invitation link',
+    'invite.copyError': 'The link could not be copied. Select the address and copy it manually.',
     'preview.title': 'Participant view',
     'client.missingToken': 'Missing participant token in the URL.',
+    'client.permissions': 'This link does not have participant permissions.',
+    'client.syncError': 'The live connection is out of sync. Output has been stopped while it reconnects.',
+    'client.clockSyncError': 'Server timing could not be verified. Output is stopped until timing sync recovers.',
+    'client.controllerAway': 'The controller is offline. Output is stopped until it reconnects.',
     'client.sessionEndedTitle': 'Session ended',
     'client.sessionEndedMessage': 'The controller has ended this session.',
+    'client.controls': 'Participant controls',
+    'client.localStop': 'Stop output now',
+    'client.localResume': 'Resume output',
+    'client.roundExpired': 'This timed round has finished. Output is stopped.',
     'client.audioEnabled': 'Audio enabled',
     'client.enableAudio': 'Enable audio',
     'client.fullscreen': 'Fullscreen',
     'client.exitFullscreen': 'Exit fullscreen',
+    'client.fullscreenAudioRequired': 'Enable audio before entering fullscreen.',
+    'client.fullscreenAudioEnabled': 'The controller enabled audio. Leaving fullscreen so you can enable it safely.',
+    'client.fullscreenAudioExitFailed':
+      'Audio was enabled, but fullscreen could not be closed. Use Exit fullscreen or Stop output now.',
+    'client.fullscreenUnavailable': 'Fullscreen is not available in this browser.',
+    'client.fullscreenFailed': 'Fullscreen could not be opened.',
     'client.enableAudioTitle': 'Enable audio',
     'client.enableAudioBody': 'The browser requires a user gesture to allow stereo audio.',
     'client.enterEnableAudio': 'Enter and enable audio',
@@ -218,13 +252,15 @@ const translations = {
     'app.languageLabel': 'Español',
     'app.notFoundTitle': 'Ruta no encontrada',
     'app.notFoundMessage': 'Comprueba el enlace o vuelve al inicio.',
+    'app.unexpectedErrorTitle': 'La aplicación encontró un problema inesperado',
+    'app.unexpectedErrorMessage': 'La salida se ha detenido. Vuelve al inicio y abre de nuevo el enlace de sesión.',
     'footer.navLabel': 'Enlaces legales y del proyecto',
     'footer.legal': 'Legal',
     'footer.privacy': 'Privacidad',
     'footer.terms': 'Términos',
     'footer.disclaimer': 'Aviso',
     'footer.github': 'GitHub',
-    'footer.credit': 'Hecho con 💙 por arrf - laus deo virginique matri',
+    'footer.credit': 'Hecho con un corazón azul por arrf — laus deo virginique matri',
     'common.backHome': 'Volver al inicio',
     'common.copy': 'Copiar',
     'common.copied': 'Copiado',
@@ -236,6 +272,7 @@ const translations = {
     'common.left': 'izquierda',
     'common.right': 'derecha',
     'common.loading': 'Cargando...',
+    'common.cancel': 'Cancelar',
     'common.expandPanel': 'Expandir panel',
     'common.collapsePanel': 'Contraer panel',
     'error.defaultTitle': 'No se pudo abrir la sesión',
@@ -248,7 +285,7 @@ const translations = {
     'landing.publicContentBody':
       'Open Bistimulation es software libre e independiente para señales sensoriales bilaterales en el navegador. Proporciona señales visuales, auditivas y pulsos táctiles opcionales configurables, coordinados por un controlador para un participante. Se suministra sin servicios profesionales, servicios médicos, garantías ni promesas de resultados.',
     'landing.supabaseWarning':
-      'Faltan las variables de entorno de Supabase. Copia .env.example a .env.local y completa SUPABASE_URL y SUPABASE_ANON_KEY.',
+      'No se pueden crear sesiones en este despliegue. Ponte en contacto con quien gestiona el sitio.',
     'landing.create': 'Crear sesión BLS',
     'landing.creating': 'Creando sesión...',
     'landing.disclaimerTitle': 'Aviso legal y de seguridad',
@@ -265,8 +302,8 @@ const translations = {
     'landing.tactileTitle': 'Táctil',
     'landing.tactileText': 'La salida táctil Joy-Con opcional puede funcionar directamente en navegadores compatibles con WebHID.',
     'session.therapistPanel': 'Panel de control',
-    'session.realtimeConnected': 'Realtime conectado',
-    'session.realtimeDisconnected': 'Realtime desconectado',
+    'session.realtimeConnected': 'Conexión en directo activa',
+    'session.realtimeDisconnected': 'Conexión en directo interrumpida',
     'session.previewClient': 'Previsualizar participante',
     'session.endSession': 'Terminar sesión',
     'session.localAudioEnabled': 'Audio del controlador activado',
@@ -278,17 +315,37 @@ const translations = {
     'session.therapistPermissions': 'Este enlace no tiene permisos de controlador.',
     'session.loadError': 'No se pudo cargar la sesión.',
     'session.saveStateError': 'No se pudo guardar el estado.',
-    'session.backendTokenError': 'El backend no devolvio el token de controlador.',
+    'session.syncError':
+      'No se pudo reconciliar la conexión en directo. Los controles siguen disponibles; inténtalo de nuevo.',
+    'session.heartbeatError':
+      'No se pudo verificar la presencia del controlador. La salida del participante se detendrá si no se recupera.',
+    'session.concurrentUpdate':
+      'La sesión cambió en otro controlador. Se ha restaurado el último estado guardado; revísalo antes de intentarlo de nuevo.',
+    'session.startError': 'No se pudo iniciar la tanda.',
+    'session.pauseError': 'No se pudo pausar la tanda.',
+    'session.resumeError': 'No se pudo reanudar la tanda.',
+    'session.stopError': 'No se pudo detener la tanda.',
+    'session.resetError': 'No se pudieron reiniciar los contadores.',
+    'session.preferencesError': 'No se pudieron guardar las preferencias.',
+    'session.endError': 'No se pudo terminar la sesión.',
+    'session.endConfirmTitle': '¿Terminar esta sesión?',
+    'session.endConfirmBody':
+      'Toda la salida del participante se detendrá y este enlace de invitación dejará de funcionar.',
+    'session.endConfirmAction': 'Terminar sesión',
+    'session.endedTitle': 'Sesión terminada',
+    'session.endedMessage': 'Esta sesión se terminó desde otro controlador.',
+    'session.backendTokenError': 'El backend no devolvió el token de controlador.',
     'session.createError': 'No se pudo crear la sesión.',
+    'controls.sessionActions': 'Controles y estado de la tanda',
     'controls.time': 'Tiempo',
     'controls.passes': 'Pases',
     'controls.sets': 'Tandas',
     'controls.start': 'Iniciar BLS',
     'controls.pause': 'Pausar',
     'controls.resume': 'Reanudar',
-    'controls.stop': 'Stop',
+    'controls.stop': 'Detener',
     'controls.stopping': 'Deteniendo...',
-    'controls.reset': 'Reset',
+    'controls.reset': 'Reiniciar',
     'controls.savePreferences': 'Guardar preferencias',
     'controls.roundDuration': 'Duración de tanda',
     'controls.remaining': 'Restante',
@@ -296,7 +353,7 @@ const translations = {
     'controls.free': 'Libre',
     'controls.minusTen': '-10s',
     'controls.plusTen': '+10s',
-    'controls.presets': 'Presets',
+    'controls.presets': 'Duraciones',
     'visual.title': 'Visual',
     'visual.color': 'Color BLS',
     'visual.colorAria': 'Color {color}',
@@ -370,14 +427,33 @@ const translations = {
     'tactile.outputError': 'Error táctil: {error}',
     'invite.eyebrow': 'Participante',
     'invite.title': 'Enlace de invitación',
+    'invite.copyError': 'No se pudo copiar el enlace. Selecciona la dirección y cópiala manualmente.',
     'preview.title': 'Vista del participante',
     'client.missingToken': 'Falta el token de participante en la URL.',
+    'client.permissions': 'Este enlace no tiene permisos de participante.',
+    'client.syncError':
+      'La conexión en directo no está sincronizada. La salida se ha detenido mientras vuelve a conectar.',
+    'client.clockSyncError':
+      'No se pudo verificar el tiempo del servidor. La salida se detiene hasta recuperar la sincronización.',
+    'client.controllerAway':
+      'El controlador no está conectado. La salida está detenida hasta que vuelva a conectar.',
     'client.sessionEndedTitle': 'Sesión terminada',
     'client.sessionEndedMessage': 'El controlador ha terminado esta sesión.',
+    'client.controls': 'Controles del participante',
+    'client.localStop': 'Detener salida ahora',
+    'client.localResume': 'Reanudar salida',
+    'client.roundExpired': 'Esta tanda cronometrada ha terminado. La salida está detenida.',
     'client.audioEnabled': 'Audio activado',
     'client.enableAudio': 'Activar audio',
     'client.fullscreen': 'Pantalla completa',
     'client.exitFullscreen': 'Salir de pantalla completa',
+    'client.fullscreenAudioRequired': 'Activa el audio antes de entrar en pantalla completa.',
+    'client.fullscreenAudioEnabled':
+      'El controlador activó el audio. Saliendo de pantalla completa para que puedas activarlo de forma segura.',
+    'client.fullscreenAudioExitFailed':
+      'Se activó el audio, pero no se pudo cerrar la pantalla completa. Usa Salir de pantalla completa o Detener salida ahora.',
+    'client.fullscreenUnavailable': 'La pantalla completa no está disponible en este navegador.',
+    'client.fullscreenFailed': 'No se pudo abrir la pantalla completa.',
     'client.enableAudioTitle': 'Activar audio',
     'client.enableAudioBody': 'El navegador requiere una acción del usuario para permitir audio estéreo.',
     'client.enterEnableAudio': 'Entrar y activar audio',
@@ -444,12 +520,16 @@ function getSystemLanguage(): Language {
 }
 
 function getInitialLanguage(): Language {
-  if (typeof localStorage === 'undefined') {
+  try {
+    if (typeof localStorage === 'undefined') {
+      return getSystemLanguage();
+    }
+
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return isLanguage(stored) ? stored : getSystemLanguage();
+  } catch {
     return getSystemLanguage();
   }
-
-  const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-  return isLanguage(stored) ? stored : getSystemLanguage();
 }
 
 function translate(language: Language, key: TranslationKey, params?: TranslationParams): string {
@@ -471,7 +551,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.lang = language;
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+    try {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+    } catch {
+      // Language selection remains available in memory when storage is unavailable.
+    }
   }, [language]);
 
   const value = useMemo<I18nContextValue>(

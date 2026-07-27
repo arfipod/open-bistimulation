@@ -15,7 +15,15 @@ import {
   startPlayback,
   stopPlayback,
 } from '../domain/motion';
-import { endBlsSession, getBlsSession, getServerTimeMs, saveTherapistPreferences, saveTherapistState } from '../lib/sessionApi';
+import {
+  endBlsSession,
+  getBlsSession,
+  getServerTimeMs,
+  heartbeatTherapistSession,
+  saveTherapistPreferences,
+  saveTherapistState,
+  stopTherapistSession,
+} from '../lib/sessionApi';
 import { saveLocalPreferences } from '../lib/localStorage';
 import { clientUrl } from '../lib/url';
 import { useI18n } from '../lib/i18n';
@@ -47,28 +55,42 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
   const [state, setState] = useState<SessionState | null>(null);
   const [clientToken, setClientToken] = useState<string | null>(null);
   const [clientLastSeenAtMs, setClientLastSeenAtMs] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [fatalError, setFatalError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [heartbeatError, setHeartbeatError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [safetyBusy, setSafetyBusy] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [roundDurationMs, setRoundDurationMs] = useState<number | null>(DEFAULT_ROUND_DURATION_MS);
   const [clientJoyConStatus, setClientJoyConStatus] = useState<JoyConClientStatus>(EMPTY_CLIENT_JOYCON_STATUS);
+  const [endConfirmationOpen, setEndConfirmationOpen] = useState(false);
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const [reconcileRequest, setReconcileRequest] = useState(0);
+  const [heartbeatSuppressed, setHeartbeatSuppressed] = useState(false);
   const autoStopStartedRef = useRef(false);
   const stateRef = useRef<SessionState | null>(null);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const saveEpochRef = useRef(0);
+  const recoveringSaveRef = useRef(false);
+  const normalMutationRef = useRef(false);
+  const safetyMutationRef = useRef(false);
+  const actionEpochRef = useRef(0);
+  const lastAuthoritativeVersionRef = useRef(-1);
 
   const clock = useServerClock();
   const renderTick = useTicker(1000);
   const { t } = useI18n();
+  const tRef = useRef(t);
 
   const handleMessage = useCallback((message: SessionBroadcastMessage) => {
-    if (message.kind === 'CLIENT_READY') {
-      setClientLastSeenAtMs(Date.now());
+    if (message.kind === 'STATE_UPDATED' || message.kind === 'SESSION_ENDED') {
+      setReconcileRequest((current) => current + 1);
       return;
     }
 
-    if (message.kind === 'CLIENT_LEFT') {
-      setClientLastSeenAtMs(null);
-      setClientJoyConStatus(EMPTY_CLIENT_JOYCON_STATUS);
+    if (message.kind === 'CLIENT_READY') {
+      setClientLastSeenAtMs(Date.now());
       return;
     }
 
@@ -87,10 +109,15 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
 
   const { status: realtimeStatus, send } = useSessionRealtime({
     sessionId,
+    channelKey: clientToken ?? undefined,
     role: 'therapist',
     onMessage: handleMessage,
     onClientPresenceChange: handleClientPresenceChange,
   });
+
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   useEffect(() => {
     stateRef.current = state;
@@ -98,7 +125,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
 
   useEffect(() => {
     if (!token) {
-      setError(t('session.missingTherapistToken'));
+      setFatalError(tRef.current('session.missingTherapistToken'));
       return;
     }
 
@@ -114,16 +141,19 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
         }
 
         if (session.role !== 'therapist') {
-          setError(t('session.therapistPermissions'));
+          setFatalError(tRef.current('session.therapistPermissions'));
           return;
         }
 
         stateRef.current = session.state;
+        lastAuthoritativeVersionRef.current = session.state.version;
         setState(session.state);
+        setSessionEnded(Boolean(session.endedAt) || session.state.status === 'ended');
+        setRoundDurationMs(session.state.roundDurationMs ?? DEFAULT_ROUND_DURATION_MS);
         setClientToken(session.clientToken ?? null);
       } catch (nextError) {
         if (active) {
-          setError(nextError instanceof Error ? nextError.message : t('session.loadError'));
+          setFatalError(nextError instanceof Error ? nextError.message : tRef.current('session.loadError'));
         }
       }
     }
@@ -133,7 +163,87 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
     return () => {
       active = false;
     };
-  }, [sessionId, t, token]);
+  }, [sessionId, token]);
+
+  useEffect(() => {
+    if (!token || !clientToken) {
+      return;
+    }
+
+    let active = true;
+    let inFlight = false;
+
+    const reconcile = () => {
+      if (inFlight) {
+        return;
+      }
+
+      inFlight = true;
+      void getBlsSession(sessionId, token)
+        .then((session) => {
+          if (!active || session.role !== 'therapist') {
+            return;
+          }
+
+          if (session.state.version >= lastAuthoritativeVersionRef.current) {
+            lastAuthoritativeVersionRef.current = session.state.version;
+            const current = stateRef.current;
+            if (!current || session.state.version >= current.version) {
+              stateRef.current = session.state;
+              setState(session.state);
+              setRoundDurationMs(session.state.roundDurationMs ?? DEFAULT_ROUND_DURATION_MS);
+            }
+            setSessionEnded(Boolean(session.endedAt) || session.state.status === 'ended');
+          }
+          setActionError(null);
+        })
+        .catch(() => {
+          if (active) {
+            setActionError(tRef.current('session.syncError'));
+          }
+        })
+        .finally(() => {
+          inFlight = false;
+        });
+    };
+
+    reconcile();
+    const interval = window.setInterval(reconcile, 5_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [clientToken, reconcileRequest, sessionId, token]);
+
+  useEffect(() => {
+    if (!token || !clientToken || sessionEnded || heartbeatSuppressed) {
+      return;
+    }
+
+    let active = true;
+    const heartbeat = () => {
+      void heartbeatTherapistSession(sessionId, token)
+        .then(() => {
+          if (active) {
+            setHeartbeatError(null);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setHeartbeatError(tRef.current('session.heartbeatError'));
+          }
+        });
+    };
+
+    heartbeat();
+    const interval = window.setInterval(heartbeat, 5_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [clientToken, heartbeatSuppressed, sessionEnded, sessionId, token]);
 
   const commitState = useCallback(
     async (nextState: SessionState) => {
@@ -141,10 +251,63 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
         return;
       }
 
+      if (recoveringSaveRef.current || safetyMutationRef.current) {
+        throw new Error(tRef.current('session.concurrentUpdate'));
+      }
+
+      const previousState = stateRef.current;
+      const saveEpoch = saveEpochRef.current;
       stateRef.current = nextState;
       setState(nextState);
-      await send({ kind: 'STATE_UPDATED', state: nextState, emittedAtMs: getServerNowMs(clock.offsetMs) });
-      await saveTherapistState(sessionId, token, nextState);
+
+      const persist = saveQueueRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          if (saveEpoch !== saveEpochRef.current) {
+            throw new Error(tRef.current('session.concurrentUpdate'));
+          }
+
+          try {
+            await saveTherapistState(sessionId, token, nextState);
+          } catch (nextError) {
+            recoveringSaveRef.current = true;
+            saveEpochRef.current += 1;
+
+            try {
+              const session = await getBlsSession(sessionId, token);
+              if (
+                session.role === 'therapist' &&
+                session.state.version >= lastAuthoritativeVersionRef.current
+              ) {
+                lastAuthoritativeVersionRef.current = session.state.version;
+                stateRef.current = session.state;
+                setState(session.state);
+                setSessionEnded(Boolean(session.endedAt) || session.state.status === 'ended');
+                setRoundDurationMs(session.state.roundDurationMs ?? DEFAULT_ROUND_DURATION_MS);
+              }
+            } catch {
+              if (previousState && previousState.version >= lastAuthoritativeVersionRef.current) {
+                stateRef.current = previousState;
+                setState(previousState);
+                setRoundDurationMs(previousState.roundDurationMs ?? DEFAULT_ROUND_DURATION_MS);
+              }
+            } finally {
+              saveEpochRef.current += 1;
+              recoveringSaveRef.current = false;
+            }
+
+            throw nextError;
+          }
+
+          lastAuthoritativeVersionRef.current = Math.max(
+            lastAuthoritativeVersionRef.current,
+            nextState.version,
+          );
+          await send({ kind: 'STATE_UPDATED', state: nextState, emittedAtMs: getServerNowMs(clock.offsetMs) });
+        });
+
+      saveQueueRef.current = persist.catch(() => undefined);
+      await persist;
     },
     [clock.offsetMs, send, sessionId, token],
   );
@@ -159,16 +322,22 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
 
       const nextState = recipe(currentState);
       void commitState({ ...nextState, version: nextState.version + 1 }).catch((nextError) => {
-        setError(nextError instanceof Error ? nextError.message : t('session.saveStateError'));
+        setActionError(nextError instanceof Error ? nextError.message : t('session.saveStateError'));
       });
     },
     [commitState, t],
   );
 
-  useAudioBls({ state: state ?? undefinedState, serverTimeOffsetMs: clock.offsetMs, unlocked: audioUnlocked, role: 'therapist' });
+  const audioOutput = useAudioBls({
+    state: state ?? undefinedState,
+    serverTimeOffsetMs: clock.offsetMs,
+    unlocked: audioUnlocked,
+    role: 'therapist',
+  });
+  const audioReady = audioUnlocked && audioOutput.isUnlocked;
 
   useEffect(() => {
-    if (!state || state.status !== 'running') {
+    if (!state || !clock.isSynced || clock.error || state.status !== 'running') {
       autoStopStartedRef.current = false;
       return;
     }
@@ -187,10 +356,10 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
         window.setTimeout(() => setNotice(null), 2500);
       })
       .catch((nextError) => {
-        setError(nextError instanceof Error ? nextError.message : t('session.saveStateError'));
+        setActionError(nextError instanceof Error ? nextError.message : t('session.saveStateError'));
       })
       .finally(() => setBusy(false));
-  }, [clock.offsetMs, commitState, renderTick, roundDurationMs, state, t]);
+  }, [clock.error, clock.isSynced, clock.offsetMs, commitState, renderTick, roundDurationMs, state, t]);
 
   useEffect(() => {
     if (!state || state.status !== 'stopping') {
@@ -199,8 +368,12 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
 
     if (state.motionStartedAtMs === null || state.motionStartedAtMs === undefined) {
       void commitState(completeStopPlayback(state)).catch((nextError) => {
-        setError(nextError instanceof Error ? nextError.message : t('session.saveStateError'));
+        setActionError(nextError instanceof Error ? nextError.message : t('session.saveStateError'));
       });
+      return;
+    }
+
+    if (!clock.isSynced || clock.error) {
       return;
     }
 
@@ -214,27 +387,58 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
       }
 
       void commitState(completeStopPlayback(state)).catch((nextError) => {
-        setError(nextError instanceof Error ? nextError.message : t('session.saveStateError'));
+        setActionError(nextError instanceof Error ? nextError.message : t('session.saveStateError'));
       });
     }, remainingMs + 50);
 
     return () => window.clearTimeout(timeout);
-  }, [clock.offsetMs, commitState, state, t]);
+  }, [clock.error, clock.isSynced, clock.offsetMs, commitState, state, t]);
 
   const nowForStale = Date.now() + renderTick * 0;
   const clientConnected = clientLastSeenAtMs !== null && nowForStale - clientLastSeenAtMs < STALE_AFTER_MS;
 
-  if (error) {
-    return <ErrorView message={error} />;
+  if (fatalError) {
+    return <ErrorView message={fatalError} />;
   }
 
   if (!state || !clientToken || !token) {
     return <LoadingView message={t('loading.therapist')} />;
   }
 
-  const handleStart = async () => {
+  if (sessionEnded) {
+    return <ErrorView title={t('session.endedTitle')} message={t('session.endedMessage')} />;
+  }
+
+  const runBusyAction = async (
+    action: (actionEpoch: number) => Promise<void>,
+    fallbackMessage: string,
+  ) => {
+    if (normalMutationRef.current || safetyMutationRef.current) {
+      return;
+    }
+
+    normalMutationRef.current = true;
+    const actionEpoch = actionEpochRef.current + 1;
+    actionEpochRef.current = actionEpoch;
+    setActionError(null);
     setBusy(true);
+
     try {
+      await action(actionEpoch);
+    } catch (nextError) {
+      if (actionEpoch === actionEpochRef.current) {
+        setActionError(nextError instanceof Error ? nextError.message : fallbackMessage);
+      }
+    } finally {
+      if (actionEpoch === actionEpochRef.current) {
+        normalMutationRef.current = false;
+        setBusy(false);
+      }
+    }
+  };
+
+  const handleStart = () => {
+    void runBusyAction(async (actionEpoch) => {
       const serverMs = await getServerTimeMs();
       const stateToStart =
         state.status === 'stopped'
@@ -247,70 +451,151 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
               pausedAtMs: null,
             }
           : state;
-      await commitState(startPlayback(stateToStart, serverMs + 300));
-    } finally {
-      setBusy(false);
-    }
+      await commitState(startPlayback({ ...stateToStart, roundDurationMs }, serverMs + 300));
+      if (actionEpoch === actionEpochRef.current && !safetyMutationRef.current) {
+        setHeartbeatSuppressed(false);
+      }
+    }, t('session.startError'));
   };
 
-  const handlePause = async () => {
-    setBusy(true);
-    try {
+  const handlePause = () => {
+    setHeartbeatSuppressed(true);
+    void runBusyAction(async (actionEpoch) => {
       const serverMs = await getServerTimeMs();
       await commitState(pausePlayback(state, serverMs));
-    } finally {
-      setBusy(false);
-    }
+      if (actionEpoch === actionEpochRef.current && !safetyMutationRef.current) {
+        setHeartbeatSuppressed(false);
+      }
+    }, t('session.pauseError'));
   };
 
-  const handleResume = async () => {
-    setBusy(true);
-    try {
+  const handleResume = () => {
+    void runBusyAction(async (actionEpoch) => {
       const serverMs = await getServerTimeMs();
       await commitState(resumePlayback(state, serverMs + 300));
-    } finally {
-      setBusy(false);
-    }
+      if (actionEpoch === actionEpochRef.current && !safetyMutationRef.current) {
+        setHeartbeatSuppressed(false);
+      }
+    }, t('session.resumeError'));
   };
 
-  const handleStop = async () => {
-    setBusy(true);
-    try {
-      await commitState(stopPlayback(state, getServerNowMs(clock.offsetMs)));
-    } finally {
-      setBusy(false);
+  const handleStop = () => {
+    if (safetyMutationRef.current) {
+      return;
     }
+
+    setActionError(null);
+    setHeartbeatSuppressed(true);
+    actionEpochRef.current += 1;
+    normalMutationRef.current = false;
+    setBusy(false);
+    setSafetyBusy(true);
+    safetyMutationRef.current = true;
+    saveEpochRef.current += 1;
+
+    void stopTherapistSession(sessionId, token)
+      .then((stoppedState) => {
+        lastAuthoritativeVersionRef.current = Math.max(
+          lastAuthoritativeVersionRef.current,
+          stoppedState.version,
+        );
+        stateRef.current = stoppedState;
+        setState(stoppedState);
+        setRoundDurationMs(stoppedState.roundDurationMs ?? DEFAULT_ROUND_DURATION_MS);
+        setHeartbeatSuppressed(false);
+        setActionError(null);
+        void send({
+          kind: 'STATE_UPDATED',
+          state: stoppedState,
+          emittedAtMs: getServerNowMs(clock.offsetMs),
+        }).catch(() => undefined);
+      })
+      .catch((nextError) => {
+        setActionError(nextError instanceof Error ? nextError.message : t('session.stopError'));
+      })
+      .finally(() => {
+        safetyMutationRef.current = false;
+        setSafetyBusy(false);
+      });
   };
 
   const handleReset = () => {
-    void commitState(resetPlaybackCounters(state));
+    setActionError(null);
+    void commitState(resetPlaybackCounters(state)).catch((nextError) => {
+      setActionError(nextError instanceof Error ? nextError.message : t('session.resetError'));
+    });
   };
 
-  const handleSavePreferences = async () => {
+  const handleSavePreferences = () => {
     const preferences: SessionPreferences = {
       visual: state.visual,
       audio: state.audio,
       tactile: state.tactile,
     };
 
-    saveLocalPreferences(preferences);
-    await saveTherapistPreferences(sessionId, token, preferences);
-    setNotice(t('session.preferencesSaved'));
-    window.setTimeout(() => setNotice(null), 2500);
+    void runBusyAction(async (actionEpoch) => {
+      saveLocalPreferences(preferences);
+      await saveTherapistPreferences(sessionId, token, preferences);
+      if (actionEpoch === actionEpochRef.current && !safetyMutationRef.current) {
+        setNotice(t('session.preferencesSaved'));
+        window.setTimeout(() => setNotice(null), 2500);
+      }
+    }, t('session.preferencesError'));
   };
 
-  const handleEndSession = async () => {
-    setBusy(true);
-    try {
-      await endBlsSession(sessionId, token);
-      await send({ kind: 'SESSION_ENDED', emittedAtMs: getServerNowMs(clock.offsetMs) });
-      window.location.assign('/');
-    } finally {
-      setBusy(false);
+  const handleUnlockAudio = async () => {
+    const unlocked = await audioOutput.unlock();
+    setAudioUnlocked(unlocked);
+  };
+
+  const handleEndSession = () => {
+    if (safetyMutationRef.current) {
+      return;
     }
+
+    setEndConfirmationOpen(false);
+    setHeartbeatSuppressed(true);
+    actionEpochRef.current += 1;
+    normalMutationRef.current = false;
+    setBusy(false);
+    setSafetyBusy(true);
+    safetyMutationRef.current = true;
+    saveEpochRef.current += 1;
+    const endedState: SessionState = {
+      ...state,
+      version: state.version + 1,
+      status: 'ended',
+      startedAtMs: null,
+      pausedAtMs: null,
+      motionStartedAtMs: null,
+    };
+
+    void endBlsSession(sessionId, token)
+      .then(async () => {
+        lastAuthoritativeVersionRef.current = endedState.version;
+        stateRef.current = endedState;
+        setState(endedState);
+        setSessionEnded(true);
+        await send({
+          kind: 'SESSION_ENDED',
+          emittedAtMs: getServerNowMs(clock.offsetMs),
+        }).catch(() => undefined);
+        window.location.assign('/');
+      })
+      .catch((nextError) => {
+        setActionError(nextError instanceof Error ? nextError.message : t('session.endError'));
+      })
+      .finally(() => {
+        safetyMutationRef.current = false;
+        setSafetyBusy(false);
+      });
   };
 
   const roundInProgress = state.status === 'running' || state.status === 'stopping';
+  const handleRoundDurationChange = (durationMs: number | null) => {
+    setRoundDurationMs(durationMs);
+    patchState((current) => ({ ...current, roundDurationMs: durationMs }));
+  };
 
   return (
     <main className="therapist-page">
@@ -321,58 +606,25 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
         actions={
           <>
             <ConnectionBadge connected={clientConnected} label={clientConnected ? t('common.clientConnected') : t('common.noClient')} />
-            <button className="secondary-button" type="button" onClick={() => window.open(clientUrl(sessionId, clientToken), '_blank')}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => window.open(`${clientUrl(sessionId, clientToken)}&preview=1`, '_blank', 'noopener,noreferrer')}
+            >
               {t('session.previewClient')}
             </button>
-            <button className="danger-button" type="button" disabled={busy} onClick={handleEndSession}>
+            <button className="danger-button" type="button" disabled={safetyBusy} onClick={() => setEndConfirmationOpen(true)}>
               {t('session.endSession')}
             </button>
           </>
         }
       />
 
-      <div className="therapist-grid">
-        <div className="left-column">
-          <InviteClient sessionId={sessionId} clientToken={clientToken} />
-          <VisualPanel
-            visual={state.visual}
-            onChange={(visual) => patchState((current) => retimeMotionForVisualChange(current, visual, getServerNowMs(clock.offsetMs)))}
-            panelCollapsible
-            autoCollapse={roundInProgress && !state.visual.enabled}
-          />
-        </div>
+      <div className="therapist-workspace">
+        <h1 className="workspace-title">{t('session.therapistPanel')}</h1>
 
-        <div className="middle-column">
-          <AuditoryPanel
-            audio={state.audio}
-            onChange={(audio) => patchState((current) => ({ ...current, audio }))}
-            panelCollapsible
-            autoCollapse={roundInProgress && !state.audio.enabled}
-          />
-          <button className="secondary-button full-width" type="button" onClick={() => setAudioUnlocked(true)}>
-            {audioUnlocked ? t('session.localAudioEnabled') : t('session.enableLocalAudio')}
-          </button>
-          <ClientPreview state={state} serverTimeOffsetMs={clock.offsetMs} panelCollapsible autoCollapse={state.status === 'running'} />
-        </div>
-
-        <div className="right-column">
-          <TactilePanel
-            tactile={state.tactile}
-            onChange={(tactile) => patchState((current) => ({ ...current, tactile }))}
-            panelCollapsible
-            autoCollapse={roundInProgress && !state.tactile.enabled}
-            webHidSupported={clientJoyConStatus.webHidSupported}
-            requestingDevices={clientJoyConStatus.requestingDevices}
-            devices={clientJoyConStatus.devices}
-            leftConnected={clientJoyConStatus.leftConnected}
-            rightConnected={clientJoyConStatus.rightConnected}
-            error={clientJoyConStatus.error}
-            outputStatus={clientJoyConStatus.outputStatus}
-            deviceStatusCollapsible
-            defaultDeviceStatusCollapsed
-            defaultInstructionsCollapsed
-          />
-          <section className="stats-panel panel" aria-label={t('controls.time')}>
+        <div className="session-command-deck">
+          <section className="stats-panel panel" aria-label={t('controls.sessionActions')}>
             <SessionStats state={state} serverTimeOffsetMs={clock.offsetMs} />
             <SessionControlActions
               state={state}
@@ -381,21 +633,88 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
               onResume={handleResume}
               onStop={handleStop}
               onReset={handleReset}
-              onSavePreferences={() => void handleSavePreferences()}
+              onSavePreferences={handleSavePreferences}
               busy={busy}
+              safetyBusy={safetyBusy}
             />
           </section>
           <SessionControls
             state={state}
             serverTimeOffsetMs={clock.offsetMs}
             roundDurationMs={roundDurationMs}
-            onRoundDurationChange={setRoundDurationMs}
+            onRoundDurationChange={handleRoundDurationChange}
             busy={busy}
             panelCollapsible
             autoCollapse={state.status === 'running'}
           />
-          {clock.error ? <div className="warning-box">{t('session.serverClock')}: {clock.error}</div> : null}
-          {notice ? <div className="success-box">{notice}</div> : null}
+        </div>
+
+        {endConfirmationOpen ? (
+          <section className="end-session-confirmation" role="alertdialog" aria-labelledby="end-session-title" aria-describedby="end-session-description">
+            <div>
+              <h2 id="end-session-title">{t('session.endConfirmTitle')}</h2>
+              <p id="end-session-description">{t('session.endConfirmBody')}</p>
+            </div>
+            <div className="confirmation-actions">
+              <button className="secondary-button" type="button" onClick={() => setEndConfirmationOpen(false)}>
+                {t('common.cancel')}
+              </button>
+              <button className="danger-button" type="button" disabled={safetyBusy} onClick={handleEndSession}>
+                {t('session.endConfirmAction')}
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {actionError ? <div className="error-box workspace-notice" role="alert">{actionError}</div> : null}
+        {heartbeatError ? <div className="error-box workspace-notice" role="alert">{heartbeatError}</div> : null}
+        {audioOutput.error ? <div className="error-box workspace-notice" role="alert">{audioOutput.error}</div> : null}
+        {clock.error ? <div className="warning-box workspace-notice" role="status">{t('session.serverClock')}: {clock.error}</div> : null}
+        {notice ? <div className="success-box workspace-notice" role="status">{notice}</div> : null}
+
+        <InviteClient sessionId={sessionId} clientToken={clientToken} />
+
+        <div className="therapist-grid">
+          <div className="left-column">
+          <VisualPanel
+            visual={state.visual}
+            onChange={(visual) => patchState((current) => retimeMotionForVisualChange(current, visual, getServerNowMs(clock.offsetMs)))}
+            panelCollapsible
+            autoCollapse={roundInProgress && !state.visual.enabled}
+          />
+          </div>
+
+          <div className="middle-column">
+            <AuditoryPanel
+              audio={state.audio}
+              onChange={(audio) => patchState((current) => ({ ...current, audio }))}
+              panelCollapsible
+              autoCollapse={roundInProgress && !state.audio.enabled}
+            />
+            <button className="secondary-button full-width" type="button" onClick={() => void handleUnlockAudio()}>
+              {audioReady ? t('session.localAudioEnabled') : t('session.enableLocalAudio')}
+            </button>
+            <ClientPreview state={state} serverTimeOffsetMs={clock.offsetMs} panelCollapsible autoCollapse={state.status === 'running'} />
+          </div>
+
+          <div className="right-column">
+            <TactilePanel
+              tactile={state.tactile}
+              onChange={(tactile) => patchState((current) => ({ ...current, tactile }))}
+              panelCollapsible
+              autoCollapse={roundInProgress && !state.tactile.enabled}
+              webHidSupported={clientJoyConStatus.webHidSupported}
+              requestingDevices={clientJoyConStatus.requestingDevices}
+              devices={clientJoyConStatus.devices}
+              leftConnected={clientJoyConStatus.leftConnected}
+              rightConnected={clientJoyConStatus.rightConnected}
+              error={clientJoyConStatus.error}
+              outputStatus={clientJoyConStatus.outputStatus}
+              deviceStatusCollapsible
+              defaultDeviceStatusCollapsed
+              defaultInstructionsCollapsed
+            />
+          </div>
         </div>
       </div>
     </main>
@@ -405,6 +724,7 @@ export function TherapistSessionPage({ sessionId, token }: TherapistSessionPageP
 const undefinedState: SessionState = {
   version: 0,
   status: 'idle',
+  roundDurationMs: null,
   startedAtMs: null,
   pausedAtMs: null,
   elapsedBeforePauseMs: 0,

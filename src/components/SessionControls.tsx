@@ -24,6 +24,7 @@ interface SessionControlActionsProps {
   onReset: () => void;
   onSavePreferences: () => void;
   busy?: boolean;
+  safetyBusy?: boolean;
 }
 
 const MIN_ROUND_DURATION_MS = 10_000;
@@ -110,6 +111,7 @@ export function SessionControls({
           <input
             aria-label={t('controls.durationInput')}
             inputMode="numeric"
+            disabled={controlsDisabled}
             value={durationDraft}
             onBlur={handleDurationBlur}
             onChange={(event) => setDurationDraft(event.target.value)}
@@ -124,10 +126,11 @@ export function SessionControls({
           <span>{t('controls.remaining')}</span>
           <strong>{remainingMs === null ? t('controls.free') : formatElapsedTime(remainingMs)}</strong>
         </div>
-        <div className="round-timer-actions" aria-label={t('controls.presets')}>
+        <div className="round-timer-actions" role="group" aria-label={t('controls.presets')}>
           <button
             className={`secondary-button compact-button ${roundDurationMs === null ? 'is-selected' : ''}`}
             type="button"
+            aria-pressed={roundDurationMs === null}
             disabled={controlsDisabled}
             onClick={setFreeDuration}
           >
@@ -162,6 +165,7 @@ export function SessionControls({
               key={presetMs}
               className={`secondary-button compact-button ${roundDurationMs === presetMs ? 'is-selected' : ''}`}
               type="button"
+              aria-pressed={roundDurationMs === presetMs}
               disabled={controlsDisabled}
               onClick={() => setDuration(presetMs)}
             >
@@ -184,12 +188,13 @@ export function SessionControlActions({
   onReset,
   onSavePreferences,
   busy = false,
+  safetyBusy = false,
 }: SessionControlActionsProps) {
   const { t } = useI18n();
   const isRunning = state.status === 'running';
   const isPaused = state.status === 'paused';
   const isStopping = state.status === 'stopping';
-  const controlsDisabled = busy || isStopping;
+  const controlsDisabled = busy || safetyBusy || isStopping;
 
   return (
     <div className="control-actions">
@@ -209,7 +214,7 @@ export function SessionControlActions({
         </button>
       ) : null}
       {isRunning || isPaused ? (
-        <button className="danger-button" type="button" disabled={controlsDisabled} onClick={onStop}>
+        <button className="danger-button" type="button" disabled={safetyBusy} onClick={onStop}>
           {t('controls.stop')}
         </button>
       ) : null}
@@ -235,20 +240,35 @@ function formatRoundDuration(durationMs: number | null, freeLabel: string): stri
 function parseDurationInput(value: string, freeLabel: string): number | 'free' | null {
   const normalized = value.trim().toLowerCase();
 
-  if (!normalized || normalized === freeLabel.toLowerCase() || normalized === 'free' || normalized === 'libre') {
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized === freeLabel.toLowerCase() || normalized === 'free' || normalized === 'libre') {
     return 'free';
   }
 
   if (!normalized.includes(':')) {
     const seconds = Number(normalized);
-    return Number.isFinite(seconds) ? seconds * 1000 : null;
+    return /^\d+$/.test(normalized) && Number.isFinite(seconds) ? seconds * 1000 : null;
   }
 
-  const [minutesText, secondsText] = normalized.split(':');
+  const parts = normalized.split(':');
+
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  const [minutesText, secondsText] = parts;
+
+  if (!/^\d+$/.test(minutesText) || !/^\d{1,2}$/.test(secondsText)) {
+    return null;
+  }
+
   const minutes = Number(minutesText);
   const seconds = Number(secondsText);
 
-  if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) {
+  if (!Number.isFinite(minutes) || !Number.isFinite(seconds) || seconds >= 60) {
     return null;
   }
 

@@ -38,11 +38,13 @@ export function useJoyConTactileOutput({
   const lastHalfCycleRef = useRef<number | null>(null);
   const lastPulseStartedAtRef = useRef<Record<TactileSide, number | null>>({ left: null, right: null });
   const pulseInFlightRef = useRef<Record<TactileSide, boolean>>({ left: false, right: false });
-  const neutralInFlightRef = useRef(false);
   const pulseCountRef = useRef(0);
   const skippedPulseCountRef = useRef(0);
+  const faultedRef = useRef(false);
+  const operationGenerationRef = useRef(0);
+  const wasEnabledRef = useRef(enabled);
 
-  const active = enabled && state.status === 'running' && state.tactile.enabled;
+  const active = enabled && !faultedRef.current && state.status === 'running' && state.tactile.enabled;
 
   const updateStatus = useCallback((recipe: (current: JoyConOutputStatus) => JoyConOutputStatus) => {
     if (mountedRef.current) {
@@ -74,29 +76,54 @@ export function useJoyConTactileOutput({
   const resetTimingRefs = useCallback(() => {
     lastHalfCycleRef.current = null;
     lastPulseStartedAtRef.current = { left: null, right: null };
-    pulseInFlightRef.current = { left: false, right: false };
   }, []);
 
-  const sendNeutral = useCallback(
-    () => {
-      if (neutralInFlightRef.current) {
+  const latchFault = useCallback(
+    (error: unknown, operationGeneration: number) => {
+      if (operationGeneration !== operationGenerationRef.current) {
         return;
       }
 
-      neutralInFlightRef.current = true;
+      faultedRef.current = true;
+      operationGenerationRef.current += 1;
+      wasActiveRef.current = false;
+      resetTimingRefs();
+      recordError(error);
+
+      const faultGeneration = operationGenerationRef.current;
+      void neutralJoyCon({ side: 'both' }).catch((neutralError) => {
+        if (!faultedRef.current || faultGeneration !== operationGenerationRef.current) {
+          return;
+        }
+
+        recordError(
+          new Error(
+            `${messageFromError(error)} Neutral command also failed: ${messageFromError(neutralError)}`,
+          ),
+        );
+      });
+    },
+    [recordError, resetTimingRefs],
+  );
+
+  const sendNeutral = useCallback(
+    () => {
+      const operationGeneration = operationGenerationRef.current;
+
       void neutralJoyCon({ side: 'both' })
         .then(() => {
-          updateStatus((current) => ({
-            ...current,
-            lastError: null,
-          }));
+          if (!faultedRef.current && operationGeneration === operationGenerationRef.current) {
+            updateStatus((current) => ({
+              ...current,
+              lastError: null,
+            }));
+          }
         })
-        .catch(recordError)
-        .finally(() => {
-          neutralInFlightRef.current = false;
+        .catch((error) => {
+          latchFault(error, operationGeneration);
         });
     },
-    [recordError, updateStatus],
+    [latchFault, updateStatus],
   );
 
   useEffect(() => {
@@ -106,6 +133,15 @@ export function useJoyConTactileOutput({
       mountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (enabled && !wasEnabledRef.current) {
+      operationGenerationRef.current += 1;
+      faultedRef.current = false;
+      updateStatus((current) => ({ ...current }));
+    }
+    wasEnabledRef.current = enabled;
+  }, [enabled, updateStatus]);
 
   useEffect(() => {
     if (active) {
@@ -139,6 +175,10 @@ export function useJoyConTactileOutput({
     let cancelled = false;
 
     const tick = () => {
+      if (cancelled || faultedRef.current) {
+        return;
+      }
+
       const nowMs = getServerNowMs(serverTimeOffsetMs);
       const snapshot = getMotionSnapshot(state, nowMs);
 
@@ -160,13 +200,13 @@ export function useJoyConTactileOutput({
           pulseCountRef.current += 1;
 
           const pulseCount = pulseCountRef.current;
+          const operationGeneration = operationGenerationRef.current;
 
           updateStatus((current) => ({
             ...current,
             lastPulseSide: side,
             lastPulseAt: nowMs,
             pulseCount,
-            lastError: null,
           }));
 
           void pulseJoyCon({
@@ -175,14 +215,24 @@ export function useJoyConTactileOutput({
             repeats: 1,
             intensity,
           })
-            .catch(recordError)
+            .then(() => {
+              if (!faultedRef.current && operationGeneration === operationGenerationRef.current) {
+                updateStatus((current) => ({
+                  ...current,
+                  lastError: null,
+                }));
+              }
+            })
+            .catch((error) => {
+              latchFault(error, operationGeneration);
+            })
             .finally(() => {
               pulseInFlightRef.current[side] = false;
             });
         }
       }
 
-      if (!cancelled) {
+      if (!cancelled && !faultedRef.current) {
         frame = window.requestAnimationFrame(tick);
       }
     };
@@ -193,7 +243,7 @@ export function useJoyConTactileOutput({
       cancelled = true;
       window.cancelAnimationFrame(frame);
     };
-  }, [active, intensity, recordError, recordSkippedPulse, resetTimingRefs, serverTimeOffsetMs, state, updateStatus]);
+  }, [active, intensity, latchFault, recordSkippedPulse, resetTimingRefs, serverTimeOffsetMs, state, updateStatus]);
 
   return useMemo(
     () => ({

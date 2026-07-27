@@ -111,6 +111,7 @@ export function TactilePanel({
 }: TactilePanelProps) {
   const { t } = useI18n();
   const panelBodyId = useId();
+  const panelTitleId = useId();
   const deviceStatusId = useId();
   const leftDevice = findDevice(devices, 'left');
   const rightDevice = findDevice(devices, 'right');
@@ -198,18 +199,20 @@ export function TactilePanel({
         aria-label={panelCollapsed ? t('tactile.expandPanel') : t('tactile.collapsePanel')}
         onClick={() => setPanelCollapsed((collapsed) => !collapsed)}
       >
-        <h2>{t('tactile.title')}</h2>
+        <h2 id={panelTitleId}>{t('tactile.title')}</h2>
         <CollapseGlyph collapsed={panelCollapsed} />
       </button>
     </header>
   ) : (
     <header className="panel-header">
-      <h2>{t('tactile.title')}</h2>
+      <h2 id={panelTitleId}>{t('tactile.title')}</h2>
       <div className="panel-header-actions">
         {settingsEditable ? (
           <label className="switch">
             <input
               type="checkbox"
+              role="switch"
+              aria-labelledby={panelTitleId}
               checked={tactile.enabled}
               onChange={(event) => onChange?.({ ...tactile, enabled: event.target.checked })}
             />
@@ -233,7 +236,7 @@ export function TactilePanel({
   );
 
   return (
-    <section className={`control-panel tactile-panel ${panelCollapsed ? 'is-collapsed' : ''}`}>
+    <section className={`control-panel tactile-panel ${panelCollapsed ? 'is-collapsed' : ''}`} aria-labelledby={panelTitleId}>
       {panelHeader}
 
       {!panelCollapsed ? (
@@ -309,12 +312,13 @@ export function TactilePanel({
 
               <div className="field-group">
                 <label>{t('tactile.intensity')}</label>
-                <div className="segmented-grid three">
+                <div className="segmented-grid three" role="group" aria-label={t('tactile.intensity')}>
                   {INTENSITIES.map((nextIntensity) => (
                     <button
                       key={nextIntensity.value}
                       type="button"
                       className={intensity === nextIntensity.value ? 'is-selected' : ''}
+                      aria-pressed={intensity === nextIntensity.value}
                       onClick={() => onChange?.({ ...tactile, intensity: nextIntensity.value })}
                     >
                       {t(nextIntensity.labelKey)}

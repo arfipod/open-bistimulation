@@ -135,7 +135,7 @@ export function getStimulusPosition(
     };
   }
 
-  return getInfinityPosition(direction, phase, centerX, safeHeight / 2, ampX, ampY, motionOrder);
+  return getInfinityPosition(direction, phase, centerX, safeHeight / 2, ampX, ampY, glide);
 }
 
 function getMotionOrder(visual: VisualSettings): MotionOrder {
@@ -246,16 +246,14 @@ function getInfinityPosition(
   centerY: number,
   ampX: number,
   ampY: number,
-  motionOrder: MotionOrder,
+  glide: number,
 ): StimulusPosition {
   if (direction !== 'infinity') {
     return { x: centerX, y: centerY };
   }
 
-  const xSign = motionOrder === 'right-to-left' ? -1 : 1;
-
   return {
-    x: centerX + xSign * ampX * Math.sin(phase),
+    x: centerX + ampX * glide,
     y: centerY + ampY * Math.sin(phase) * Math.cos(phase),
   };
 }

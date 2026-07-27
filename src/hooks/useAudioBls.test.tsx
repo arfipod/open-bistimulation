@@ -6,6 +6,8 @@ import { useAudioBls } from './useAudioBls';
 
 const mocks = vi.hoisted(() => ({
   engine: {
+    unlock: vi.fn(),
+    isUnlocked: vi.fn(),
     play: vi.fn(),
     dispose: vi.fn(),
   },
@@ -61,13 +63,15 @@ function renderUseAudioBls(state: SessionState, role: SessionRole = 'client') {
 
 describe('useAudioBls', () => {
   beforeEach(() => {
+    mocks.engine.unlock.mockReset().mockResolvedValue(undefined);
+    mocks.engine.isUnlocked.mockReset().mockReturnValue(true);
     mocks.engine.play.mockReset();
     mocks.engine.dispose.mockReset();
     mocks.createAudioEngine.mockReset().mockReturnValue(mocks.engine);
   });
 
-  it('does not create an engine until audio is both unlocked and enabled', () => {
-    renderHook(() =>
+  it('creates and resumes the engine only from the explicit unlock action', async () => {
+    const { result } = renderHook(() =>
       useAudioBls({
         state: makeState({ audio: { ...DEFAULT_SESSION_STATE.audio, enabled: false } }),
         serverTimeOffsetMs: 0,
@@ -75,34 +79,48 @@ describe('useAudioBls', () => {
         role: 'client',
       }),
     );
-    renderHook(() =>
-      useAudioBls({
-        state: makeState(),
-        serverTimeOffsetMs: 0,
-        unlocked: false,
-        role: 'client',
-      }),
-    );
 
     expect(mocks.createAudioEngine).not.toHaveBeenCalled();
-  });
 
-  it('honors therapist muting while allowing client audio', () => {
-    const mutedState = makeState({ audio: { ...DEFAULT_SESSION_STATE.audio, enabled: true, therapistMuted: true } });
+    await act(async () => {
+      await expect(result.current.unlock()).resolves.toBe(true);
+    });
 
-    renderUseAudioBls(mutedState, 'therapist');
-    expect(mocks.createAudioEngine).not.toHaveBeenCalled();
-
-    renderUseAudioBls(mutedState, 'client');
     expect(mocks.createAudioEngine).toHaveBeenCalledTimes(1);
+    expect(mocks.engine.unlock).toHaveBeenCalledTimes(1);
+    expect(result.current.isUnlocked).toBe(true);
+    expect(result.current.error).toBeNull();
   });
 
-  it('plays the configured sound when the motion half-cycle changes', () => {
+  it('honors therapist muting while allowing client audio', async () => {
+    const raf = installRaf();
+    const mutedState = makeState({ audio: { ...DEFAULT_SESSION_STATE.audio, enabled: true, therapistMuted: true } });
+    const therapist = renderUseAudioBls(mutedState, 'therapist');
+
+    await act(async () => {
+      await therapist.result.current.unlock();
+    });
+    expect(raf.count()).toBe(0);
+    therapist.unmount();
+
+    const client = renderUseAudioBls(mutedState, 'client');
+    await act(async () => {
+      await client.result.current.unlock();
+    });
+
+    expect(mocks.createAudioEngine).toHaveBeenCalledTimes(2);
+    expect(raf.count()).toBe(1);
+  });
+
+  it('plays the configured sound when the motion half-cycle changes', async () => {
     let now = 0;
     vi.spyOn(Date, 'now').mockImplementation(() => now);
     const raf = installRaf();
-    const { unmount } = renderUseAudioBls(makeState());
+    const { result, unmount } = renderUseAudioBls(makeState());
 
+    await act(async () => {
+      await result.current.unlock();
+    });
     act(() => raf.runNext());
     expect(mocks.engine.play).not.toHaveBeenCalled();
 
@@ -117,26 +135,88 @@ describe('useAudioBls', () => {
     expect(raf.count()).toBe(0);
   });
 
-  it('resets the half-cycle gate while playback is not running', () => {
+  it('resets the half-cycle gate while playback is not running', async () => {
     let now = 0;
     vi.spyOn(Date, 'now').mockImplementation(() => now);
     const raf = installRaf();
-    const { rerender } = renderHook(
+    const { result, rerender } = renderHook(
       ({ state }) => useAudioBls({ state, serverTimeOffsetMs: 0, unlocked: true, role: 'client' }),
       { initialProps: { state: makeState() } },
     );
 
+    await act(async () => {
+      await result.current.unlock();
+    });
     act(() => raf.runNext());
     now = 400;
     act(() => raf.runNext());
     expect(mocks.engine.play).toHaveBeenCalledTimes(1);
 
     rerender({ state: makeState({ status: 'paused' }) });
-    act(() => raf.runNext());
+    expect(raf.count()).toBe(0);
 
     rerender({ state: makeState() });
     act(() => raf.runNext());
 
     expect(mocks.engine.play).toHaveBeenCalledTimes(1);
+  });
+
+  it('establishes a fresh phase after audio is re-enabled or unmuted', async () => {
+    let now = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const raf = installRaf();
+    const enabledState = makeState();
+    const { result, rerender } = renderHook(
+      ({ state }) => useAudioBls({ state, serverTimeOffsetMs: 0, unlocked: true, role: 'therapist' }),
+      { initialProps: { state: enabledState } },
+    );
+
+    await act(async () => {
+      await result.current.unlock();
+    });
+    act(() => raf.runNext());
+    now = 400;
+    act(() => raf.runNext());
+    expect(mocks.engine.play).toHaveBeenCalledTimes(1);
+
+    rerender({ state: makeState({ audio: { ...enabledState.audio, enabled: false } }) });
+    now = 700;
+    rerender({ state: enabledState });
+    act(() => raf.runNext());
+    expect(mocks.engine.play).toHaveBeenCalledTimes(1);
+
+    now = 1100;
+    act(() => raf.runNext());
+    expect(mocks.engine.play).toHaveBeenCalledTimes(2);
+
+    rerender({ state: makeState({ audio: { ...enabledState.audio, therapistMuted: true } }) });
+    now = 1400;
+    rerender({ state: enabledState });
+    act(() => raf.runNext());
+    expect(mocks.engine.play).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports unlock failures reactively and allows a retry', async () => {
+    const unlockError = new Error('Audio permission was blocked.');
+    mocks.engine.unlock.mockRejectedValueOnce(unlockError).mockResolvedValueOnce(undefined);
+    const { result } = renderUseAudioBls(makeState());
+
+    await act(async () => {
+      await expect(result.current.unlock()).resolves.toBe(false);
+    });
+    expect(result.current).toMatchObject({
+      isUnlocked: false,
+      error: 'Audio permission was blocked.',
+    });
+
+    await act(async () => {
+      await expect(result.current.unlock()).resolves.toBe(true);
+    });
+    expect(mocks.createAudioEngine).toHaveBeenCalledTimes(1);
+    expect(mocks.engine.unlock).toHaveBeenCalledTimes(2);
+    expect(result.current).toMatchObject({
+      isUnlocked: true,
+      error: null,
+    });
   });
 });

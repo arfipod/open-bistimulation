@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { parseCurrentRoute } from '../lib/url';
+import { migrateLegacyRouteSecrets, parseCurrentRoute } from '../lib/url';
 import type { RouteInfo } from '../domain/sessionTypes';
 import { LandingPage } from '../pages/LandingPage';
 import { TherapistSessionPage } from '../pages/TherapistSessionPage';
@@ -14,6 +14,7 @@ export default function App() {
   const { t } = useI18n();
 
   useEffect(() => {
+    migrateLegacyRouteSecrets();
     const handlePopState = () => setRoute(parseCurrentRoute());
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -26,7 +27,7 @@ export default function App() {
   } else if (route.page === 'therapist' && route.sessionId) {
     page = <TherapistSessionPage sessionId={route.sessionId} token={route.token} />;
   } else if (route.page === 'client' && route.sessionId) {
-    page = <ClientSessionPage sessionId={route.sessionId} token={route.token} />;
+    page = <ClientSessionPage sessionId={route.sessionId} token={route.token} preview={route.preview} />;
   } else if (route.page === 'legal' || route.page === 'privacy' || route.page === 'terms' || route.page === 'disclaimer') {
     page = <LegalPage page={route.page} />;
   } else {
@@ -36,7 +37,7 @@ export default function App() {
   return (
     <div className={`app-shell app-shell-${route.page}`}>
       {page}
-      <AppFooter />
+      {route.page !== 'client' ? <AppFooter /> : null}
     </div>
   );
 }

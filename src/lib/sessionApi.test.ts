@@ -33,6 +33,7 @@ describe('session API', () => {
         state: null,
         preferences: null,
         expires_at: '2026-05-22T00:00:00.000Z',
+        therapist_heartbeat_at: '2026-05-21T00:00:00.000Z',
       },
       error: null,
     });
@@ -48,6 +49,7 @@ describe('session API', () => {
       preferences: DEFAULT_PREFERENCES,
       expiresAt: '2026-05-22T00:00:00.000Z',
       endedAt: null,
+      therapistHeartbeatAt: '2026-05-21T00:00:00.000Z',
     });
     expect(rpc).toHaveBeenCalledWith('create_bls_session', {
       _state: DEFAULT_SESSION_STATE,
@@ -79,7 +81,7 @@ describe('session API', () => {
       tactile: state.tactile,
     };
     const rpc = vi.fn(() => ({
-      single: vi.fn().mockResolvedValue({
+      maybeSingle: vi.fn().mockResolvedValue({
         data: {
           id: 'session-id',
           role: 'client',
@@ -89,6 +91,7 @@ describe('session API', () => {
           preferences,
           expires_at: null,
           ended_at: null,
+          therapist_heartbeat_at: '2026-05-21T12:00:00.000Z',
         },
         error: null,
       }),
@@ -104,6 +107,7 @@ describe('session API', () => {
       preferences,
       expiresAt: null,
       endedAt: null,
+      therapistHeartbeatAt: '2026-05-21T12:00:00.000Z',
     });
     expect(rpc).toHaveBeenCalledWith('get_bls_session', {
       _session_id: 'session-id',
@@ -113,7 +117,7 @@ describe('session API', () => {
 
   it('throws when a session cannot be found for the token', async () => {
     const rpc = vi.fn(() => ({
-      single: vi.fn().mockResolvedValue({
+      maybeSingle: vi.fn().mockResolvedValue({
         data: null,
         error: null,
       }),
@@ -128,6 +132,12 @@ describe('session API', () => {
       if (name === 'get_server_time_ms') {
         return Promise.resolve({ data: '123456', error: null });
       }
+      if (name === 'therapist_stop_session') {
+        return Promise.resolve({
+          data: { ...DEFAULT_SESSION_STATE, version: 2, status: 'stopped' },
+          error: null,
+        });
+      }
 
       return Promise.resolve({ data: true, error: null });
     });
@@ -135,13 +145,18 @@ describe('session API', () => {
 
     await expect(api.saveTherapistState('session-id', 'therapist-token', DEFAULT_SESSION_STATE)).resolves.toBeUndefined();
     await expect(api.saveTherapistPreferences('session-id', 'therapist-token', DEFAULT_PREFERENCES)).resolves.toBeUndefined();
+    await expect(api.stopTherapistSession('session-id', 'therapist-token')).resolves.toEqual(
+      expect.objectContaining({ version: 2, status: 'stopped' }),
+    );
     await expect(api.endBlsSession('session-id', 'therapist-token')).resolves.toBeUndefined();
+    await expect(api.heartbeatTherapistSession('session-id', 'therapist-token')).resolves.toBeUndefined();
     await expect(api.getServerTimeMs()).resolves.toBe(123456);
 
     expect(rpc).toHaveBeenCalledWith('therapist_save_state', {
       _session_id: 'session-id',
       _therapist_token: 'therapist-token',
       _state: DEFAULT_SESSION_STATE,
+      _expected_version: 0,
     });
     expect(rpc).toHaveBeenCalledWith('therapist_save_preferences', {
       _session_id: 'session-id',
@@ -152,6 +167,14 @@ describe('session API', () => {
       _session_id: 'session-id',
       _therapist_token: 'therapist-token',
     });
+    expect(rpc).toHaveBeenCalledWith('therapist_stop_session', {
+      _session_id: 'session-id',
+      _therapist_token: 'therapist-token',
+    });
+    expect(rpc).toHaveBeenCalledWith('therapist_heartbeat', {
+      _session_id: 'session-id',
+      _therapist_token: 'therapist-token',
+    });
     expect(rpc).toHaveBeenCalledWith('get_server_time_ms');
   });
 
@@ -159,5 +182,32 @@ describe('session API', () => {
     const api = await importSessionApi(true, vi.fn().mockResolvedValue({ data: null, error: new Error('save failed') }));
 
     await expect(api.saveTherapistState('session-id', 'token', DEFAULT_SESSION_STATE)).rejects.toThrow('save failed');
+  });
+
+  it('rejects mutation RPCs when the backend reports that no session was changed', async () => {
+    const api = await importSessionApi(true, vi.fn().mockResolvedValue({ data: false, error: null }));
+
+    await expect(api.saveTherapistState('session-id', 'token', DEFAULT_SESSION_STATE)).rejects.toThrow(
+      'Session state update was rejected by the server.',
+    );
+    await expect(api.saveTherapistPreferences('session-id', 'token', DEFAULT_PREFERENCES)).rejects.toThrow(
+      'Session preferences update was rejected by the server.',
+    );
+    await expect(api.stopTherapistSession('session-id', 'token')).rejects.toThrow(
+      'Session stop was rejected by the server.',
+    );
+    await expect(api.endBlsSession('session-id', 'token')).rejects.toThrow('Session end was rejected by the server.');
+    await expect(api.heartbeatTherapistSession('session-id', 'token')).rejects.toThrow(
+      'Controller heartbeat was rejected by the server.',
+    );
+  });
+
+  it('rejects invalid server clock values', async () => {
+    const api = await importSessionApi(
+      true,
+      vi.fn().mockResolvedValue({ data: null, error: null }),
+    );
+
+    await expect(api.getServerTimeMs()).rejects.toThrow('invalid clock value');
   });
 });

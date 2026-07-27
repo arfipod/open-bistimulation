@@ -1,6 +1,8 @@
 import type { AudioSound, TactileSide } from './sessionTypes';
 
 export interface AudioEngine {
+  unlock(): Promise<void>;
+  isUnlocked(): boolean;
   play(sound: AudioSound, side: TactileSide, volume: number): void;
   dispose(): void;
 }
@@ -13,10 +15,30 @@ export function createAudioEngine(): AudioEngine {
   }
 
   const context = new AudioContextCtor();
+  let disposed = false;
 
   return {
+    async unlock() {
+      if (disposed || context.state === 'closed') {
+        throw new Error('Audio output has already been closed.');
+      }
+
+      if (context.state !== 'running') {
+        await context.resume();
+      }
+
+      if (context.state !== 'running') {
+        throw new Error('The browser did not allow audio output. Try enabling audio again.');
+      }
+    },
+    isUnlocked() {
+      return !disposed && context.state === 'running';
+    },
     play(sound, side, volume) {
-      void context.resume();
+      if (disposed || context.state !== 'running') {
+        throw new Error('Audio output is locked. Enable audio before starting playback.');
+      }
+
       const safeVolume = Math.min(1, Math.max(0, volume));
 
       if (sound === 'snap') {
@@ -30,7 +52,12 @@ export function createAudioEngine(): AudioEngine {
       }
     },
     dispose() {
-      void context.close();
+      if (disposed) {
+        return;
+      }
+
+      disposed = true;
+      void context.close().catch(() => undefined);
     },
   };
 }

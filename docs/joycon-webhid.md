@@ -1,6 +1,6 @@
 # Joy-Con WebHID setup
 
-Open Bistimulation can drive optional tactile output from the participant browser through WebHID. The Joy-Con devices and rumble commands stay local to the participant computer; Supabase only carries session state and realtime control messages.
+Open Bistimulation can drive optional tactile output from the participant browser through WebHID. The Joy-Con devices and rumble commands stay local to the participant computer; Supabase stores session state and controller heartbeat while Realtime carries invalidation and presence hints.
 
 ## Requirements
 
@@ -24,7 +24,7 @@ Open Bistimulation can drive optional tactile output from the participant browse
 - Keep the participant tab visible and avoid locking the computer.
 - Tactile pulses follow the same left/right motion clock as the visual stimulus.
 - If only one side vibrates, stop the round, test both sides, and re-add the missing Joy-Con from the participant panel.
-- If the participant closes or leaves the page, the controller panel should move back to `No participant` as soon as realtime presence or the disconnect message is received.
+- If the participant closes or leaves the page, the controller panel should move back to `No participant` when Realtime presence updates or its liveness timeout expires.
 
 ## Troubleshooting
 

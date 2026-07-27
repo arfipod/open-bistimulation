@@ -215,6 +215,26 @@ describe('motion domain', () => {
     ).toEqual({ x: 50, y: 150 });
   });
 
+  it('keeps random infinity endpoints aligned with the deterministic modality side sequence', () => {
+    const cycleMs = cycleMsFromSpeed(20);
+    const visual = makeVisual({ speed: 20, direction: 'infinity', motionOrder: 'random' });
+    const state = makeState({
+      status: 'running',
+      startedAtMs: 0,
+      motionStartedAtMs: 0,
+      motionElapsedBeforePauseMs: 0,
+      visual,
+    });
+    const checkpoints = [0, 1, 2, 3, 4].map((index) => cycleMs / 4 + index * (cycleMs / 2));
+    const snapshots = checkpoints.map((elapsedMs) => getMotionSnapshot(state, elapsedMs));
+    const positions = checkpoints.map((elapsedMs) => getStimulusPosition(visual, elapsedMs, 400, 300));
+
+    expect(snapshots.map(({ side }) => side)).toEqual(['left', 'left', 'left', 'left', 'right']);
+    positions.forEach((position, index) => {
+      expect(position.x).toBe(snapshots[index].side === 'left' ? 50 : 350);
+    });
+  });
+
   it('keeps coordinates finite on tiny stage sizes', () => {
     expect(getStimulusPosition(makeVisual({ direction: 'horizontal' }), 0, 0, 0)).toEqual({ x: 0.5, y: 0.5 });
   });

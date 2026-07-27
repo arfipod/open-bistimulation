@@ -1,19 +1,39 @@
 # Session Stress Test
 
-Local run: 2026-05-21T00:52:47+02:00.
+Protocol audit updated: 2026-07-26. Historical benchmark run: 2026-05-21.
 
-## Executive Summary
+## What the current harness exercises
 
-- The app deployed on Vercel is a static Vite frontend. There are no custom serverless functions on Vercel; the functional bottleneck is Supabase RPC and Supabase Realtime.
-- Local `http://127.0.0.1:5173/` and Vercel `https://open-bistimulation.vercel.app/` point to the same Supabase project: `ilnybknoyafzejsftizy.supabase.co`, with the same public key fingerprint.
-- The current product model is `1 controller : 1 participant` per BLS session. The schema still uses legacy `therapist_token` and `client_token` identifiers; multiple participants can open the same link, but the app does not distinguish them as unique participants.
-- The observed historical test passed without errors up to 50 lightweight sessions: 100 Realtime connections.
-- Tactile Joy-Con output is now local to the controller browser through WebHID. Supabase Realtime is used for session state and participant readiness, not hardware pulse broadcasts.
-- For production sizing, the limit to watch is not Vercel but Supabase Realtime: concurrent connections, messages per second, and joins per second.
+The Vercel deployment is a static Vite frontend, so the functional load is split between frontend delivery, Supabase RPC, and Supabase Realtime. `scripts/stress-test.mjs` has separate HTTP and session-protocol scenarios.
 
-## Added Tooling
+The Realtime scenario now follows the app's hardened protocol:
 
-Added `scripts/stress-test.mjs` and the npm script:
+- Creates disposable sessions through `create_bls_session`.
+- Validates the therapist and client roles through `get_bls_session` before joining Realtime.
+- Joins the token-scoped, encoded topic `session:${encodeURIComponent(sessionId)}:${encodeURIComponent(clientToken)}`. The full topic and tokens are never printed.
+- Enables broadcast acknowledgements, disables self-delivery, and tracks each connection's therapist or client role through advisory Presence.
+- Calls the therapist-token `therapist_heartbeat` RPC immediately and every five seconds, requiring a literal `true` result.
+- Polls authoritative session state for both roles every five seconds. Every participant read verifies that `therapist_heartbeat_at` is no more than 15 seconds old and no more than 5 seconds in the future, matching the participant safety gate.
+- Persists every controller state change first through the four-argument CAS RPC `therapist_save_state(..., _expected_version)`.
+- Treats an RPC result other than literal `true` as a failed mutation. A rejected CAS write is not broadcast.
+- Sends `STATE_UPDATED` only after persistence. Broadcast delivery is an optimization: clients treat it as an invalidation and refetch authoritative state, while five-second polling remains the database-backed authority if a broadcast is lost.
+- Models the participant's five-second authoritative poll and its five-second `CLIENT_READY` and `JOYCON_STATUS` broadcasts.
+- Invokes `therapist_stop_session` while the session is running, requires a normalized stopped JSON state with the exact next version, and verifies the participant-token read sees that authoritative stop. It then performs one versioned restart before ending the session, exercising the stop → restart → end ordering.
+- Ends every session atomically through `end_bls_session`, verifies that `ended_at`, the incremented state version, and `status: "ended"` were committed together, then sends a best-effort `SESSION_ENDED` invalidation before removing channels.
+
+The JSON report separates:
+
+- `rpcSummary`: initial token and role validation reads.
+- `authoritativeReadSummary`: reconnect, invalidation, and five-second therapist/participant reads.
+- `therapistHeartbeatSummary` and `heartbeatFreshnessSummary`: heartbeat RPC reliability and participant-observed freshness.
+- `stateSaveSummary`: CAS state writes.
+- `stopSummary` and `stopVerificationSummary`: atomic stop response integrity and participant-visible database authority.
+- `resumeAfterStopSummary` and `resumeVerificationSummary`: the versioned restart after stop and its authoritative readback.
+- `joinSummary` and `presenceTrackSummary`: channel and Presence setup.
+- `sendSummary`: acknowledged, best-effort application broadcasts.
+- `endSummary` and `endVerificationSummary`: strict atomic end calls and authoritative post-end verification.
+
+## Commands
 
 ```bash
 npm run stress -- http --base-url http://127.0.0.1:5173/ --requests 200 --concurrency 20
@@ -21,20 +41,24 @@ npm run stress -- realtime --base-url https://open-bistimulation.vercel.app/ --s
 npm run stress -- matrix --base-url http://127.0.0.1:5173/ --sessions 10,25,40 --clients 1
 ```
 
-For Realtime, the script creates one independent Supabase client per participant, approximating WebSocket connections from separate browsers. It also creates real sessions through RPC, opens `session:{id}` channels, sends broadcasts, and closes the sessions when finished.
+For local Realtime runs, Supabase configuration is read from `.env.local` or `.env`. For a deployed Vite build, the harness can discover the public project URL and publishable/anon key from built assets.
 
-## HTTP Tests
+Before a Realtime run, deploy the current `supabase/schema.sql`. In particular, the target database must expose the four-argument `therapist_save_state(uuid, text, jsonb, bigint)` function, `therapist_stop_session(uuid, text) -> jsonb`, `therapist_heartbeat(uuid, text)`, the `therapist_heartbeat_at` field in create/get results, and the atomic `end_bls_session` implementation. The scenario creates, mutates, stops, restarts, and ends real disposable session rows in the selected project.
+
+## Historical results
+
+The results below were captured on 2026-05-21 with the earlier harness. That version used the unscoped `session:{id}` topic, did not persist each emitted update with CAS, did not exercise atomic stop/restart/end authority, did not model Presence, therapist-token heartbeats, `JOYCON_STATUS`, or database-backed heartbeat freshness, did not refetch authoritative state after invalidations, and sampled join duration only after all subscription attempts completed. These figures are retained as a transport baseline, not evidence of capacity for the current protocol. A post-hardening live Realtime benchmark has not yet been recorded in this document.
+
+### HTTP delivery
 
 | Environment | Load | OK | p50 | p95 | p99 | Max | Notes |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | Local | 200 requests, c=20 | 200/200 | 16 ms | 38 ms | 44 ms | 45 ms | Vite dev, HTML + direct module |
 | Vercel | 200 requests, c=20 | 200/200 | 86 ms | 610 ms | 843 ms | 936 ms | HTML + 2 build assets |
 
-There were no HTTP errors. This test only measures frontend delivery; it does not represent professional session capacity.
+### Lightweight Realtime transport
 
-## Lightweight Realtime Tests
-
-Scenario: each session opens 1 controller + 1 participant, without continuous controller state updates.
+Each session opened one controller and one participant without continuous controller updates.
 
 | Environment | Sessions | Connections | Subscribed | Delivery | RPC p95 | Join p95 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -45,11 +69,7 @@ Scenario: each session opens 1 controller + 1 participant, without continuous co
 | Vercel | 25 | 50 | 50 | 100% | 131 ms | 1043 ms |
 | Vercel | 50 | 100 | 100 | 100% | 79 ms | 1999 ms |
 
-Interpretation: 50 controllers with 50 simultaneous participants passed with margin during the short test window.
-
-## State Update Realtime Tests
-
-Scenario: each session opens 1 controller + 1 participant. The controller emits repeated `STATE_UPDATED` broadcasts to model session state churn. Local Joy-Con pulses are intentionally outside Supabase Realtime.
+### Repeated broadcast transport
 
 | Base | Sessions | Connections | Duration | State Hz | Subscribed | Sent | Expected received | Delivery | RPC p95 | Join p95 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -59,51 +79,62 @@ Scenario: each session opens 1 controller + 1 participant. The controller emits 
 | Vercel | 50 | 100 | 10 s | 0.58 | 100 | 650 | 650 | 100% | 153 ms | 3614 ms |
 | Vercel | 20 | 40 | 10 s | 3.08 | 40 | 760 | 760 | 100% | 167 ms | 1547 ms |
 
-Interpretation: the historical deployment handled repeated controller broadcasts in a short test. Even so, I would not treat this as production capacity without confirming the plan and logs.
+## Current capacity model
 
-## Capacity Model
+Supabase's documented Realtime limits, checked on 2026-07-26, are:
 
-Supabase documents Realtime limits by plan: Free 200 concurrent connections and 100 messages/s; Pro 500 connections and 500 messages/s; Pro without a spend cap 10,000 connections and 2,500 messages/s. Supabase also documents that an `event` counts when it is sent from a client or delivered to a client, and that `tenant_events` can disconnect when throughput is exceeded.
+| Limit | Free | Pro | Pro without spend cap |
+| --- | ---: | ---: | ---: |
+| Concurrent connections | 200 | 500 | 10,000 |
+| Messages per second | 100 | 500 | 2,500 |
+| Channel joins per second | 100 | 500 | 2,500 |
 
 Source: https://supabase.com/docs/guides/realtime/limits
 
-One current controller/participant pair consumes:
+Supabase counts an event when a WebSocket message is sent from or delivered to a client. For one controller/participant pair, the steady-state approximation is:
 
-| Mode | Connections per session | Approximate messages/s per session |
-| --- | ---: | ---: |
-| Idle visual/audio/tactile session | 2 | 0.4 from client heartbeat |
-| Controller state updates at `stateHz ~= 0.58` | 2 | `0.4 + 2 * 0.58 = 1.56` |
-| Controller state updates at `stateHz ~= 3.08` | 2 | `0.4 + 2 * 3.08 = 6.56` |
+| Mode | Connections | Realtime events/s | Database RPC/s |
+| --- | ---: | ---: | ---: |
+| Idle after setup | 2 | `0.8` | about `0.6` |
+| Controller state updates at rate `h` | 2 | `0.8 + 2h` | about `0.6 + 2h` |
 
-Quota-based estimate, before applying operational margin:
+The `0.8` Realtime baseline is two participant broadcasts every five seconds, each sent once and delivered once. The `0.6` RPC baseline is one therapist heartbeat plus one therapist poll plus one participant poll every five seconds. Each controller state update adds a CAS save and an immediate participant authoritative refetch. The estimate excludes startup/reconnect reads, the one-time atomic stop/restart/end sequence, Presence setup traffic, retries, and coalescing while an authoritative read is already in flight.
+
+Quota-only estimates, before operational margin:
 
 | Mode | Free | Pro | Pro without spend cap |
 | --- | ---: | ---: | ---: |
-| Idle sessions, connection-limited | 100 sessions | 250 sessions | 5000 sessions |
-| State updates at 0.58 Hz, message-limited | 64 sessions | 320 sessions | 1602 sessions |
-| State updates at 3.08 Hz, message-limited | 15 sessions | 76 sessions | 381 sessions |
+| Idle | 100 sessions | 250 sessions | 3,125 sessions |
+| State updates at 0.58 Hz | 51 sessions | 250 sessions | 1,275 sessions |
+| State updates at 3.08 Hz | 14 sessions | 71 sessions | 359 sessions |
 
-Recommendation with a 60-70% margin:
+These are arithmetic ceilings, not safe production targets. A 60-70% Realtime margin suggests:
 
-| Service scenario | Conservative Free | Conservative Pro |
+| Mode | Conservative Free | Conservative Pro |
 | --- | ---: | ---: |
-| Idle visual/audio/tactile sessions | 60-70 sessions | 150-175 sessions |
-| Sessions with 0.58 Hz state updates | 35-45 sessions | 190-220 sessions |
-| Sessions with 3.08 Hz state updates | 9-10 sessions | 45-55 sessions |
+| Idle | 60-70 sessions | 150-175 sessions |
+| State updates at 0.58 Hz | 30-35 sessions | 150-175 sessions |
+| State updates at 3.08 Hz | 8-10 sessions | 42-50 sessions |
 
-## Test Limitations
+RPC/database capacity, client network latency, Presence limits, reconnection bursts, and project-specific limits can produce a lower ceiling. Confirm the selected Supabase plan and review Realtime and database logs during a representative soak test.
 
-- These are short tests, not 30-120 minute soak tests.
-- Internal Supabase Dashboard logs were not reviewed; measurements were client-side only.
-- Browser WebHID Joy-Con behavior was not tested by this Supabase Realtime stress test.
-- The app does not truly support `1 controller : n unique participants` in a single session; n participants require n independent sessions or product/data model changes.
-- Joins were limited to 60/s to avoid false `too_many_joins` errors. If many users enter at exactly the same time, the joins-per-second limit also needs to be considered.
+## Test limitations
 
-## Conclusion
+- The historical runs lasted seconds, not the 30-120 minutes expected of a useful soak test.
+- The current protocol-aware harness has not yet been run against the deployed CAS, atomic-stop, heartbeat, and atomic-end schema for a recorded benchmark.
+- Supabase Dashboard logs were not reviewed; historical measurements were client-side only.
+- Browser rendering, audio, WebHID, and Joy-Con rumble are outside this Node-based test.
+- The product model remains one controller to one participant per BLS session. Opening the same participant link multiple times does not create independently addressable participants.
+- The harness throttles joins to 60/s by default. Test deliberate join bursts separately if that traffic pattern is expected.
+- Realtime Presence is advisory and a public-channel peer can claim a role, but participant output additionally requires a fresh database heartbeat that can only be written with the therapist token. Presence impersonation alone cannot keep output active. This harness does not test private-channel RLS authorization.
 
-For the current product state, it is fair to say that:
+## Release gate
 
-- 50 controllers with 50 participants were exercised locally and on Vercel.
-- Repeated controller state broadcasts were exercised against Vercel/Supabase in a short window.
-- If the project is on Supabase Free, I would not promise sustained high-frequency state-update sessions without reviewing current Supabase logs and plan limits.
-- If the project is on Supabase Pro, a reasonable initial target depends mostly on state update rate and expected session overlap.
+Before publishing a capacity claim:
+
+1. Deploy the current schema and app to the target project.
+2. Run the protocol-aware matrix at realistic update rates.
+3. Run a 30-120 minute soak at the intended concurrent-session count.
+4. Confirm `stateSaveSummary`, `stopSummary`, `stopVerificationSummary`, `resumeAfterStopSummary`, `resumeVerificationSummary`, `therapistHeartbeatSummary`, `heartbeatFreshnessSummary`, `authoritativeReadSummary`, `presenceTrackSummary`, `endSummary`, and `endVerificationSummary` have no failures or stale observations.
+5. Treat `sendSummary` failures as degraded latency rather than lost authority, and confirm polling still observes persisted state.
+6. Review Supabase Realtime and database logs for throttling, disconnects, slow RPCs, heartbeat gaps, and CAS rejects.

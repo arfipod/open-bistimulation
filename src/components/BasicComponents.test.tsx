@@ -46,7 +46,7 @@ describe('basic components', () => {
     );
 
     expect(screen.getByText('Open Bistimulation is independent open-source software.')).toBeInTheDocument();
-    expect(screen.getByText('Made with 💙 by arrf - laus deo virginique matri')).toBeInTheDocument();
+    expect(screen.getByText('Made with a blue heart by arrf — laus deo virginique matri')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Legal' })).toHaveAttribute('href', '/legal');
     expect(screen.getByText('Loading...')).toBeInTheDocument();
     expect(screen.getByText('Offline')).toHaveClass('is-disconnected');
@@ -64,7 +64,7 @@ describe('basic components', () => {
 
     renderWithI18n(<InviteClient sessionId="session-1" clientToken="client token" />);
 
-    const expectedUrl = `${window.location.origin}/session/session-1/client?t=client%20token`;
+    const expectedUrl = `${window.location.origin}/session/session-1/client#t=client%20token`;
     expect(screen.getByText(expectedUrl)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }));

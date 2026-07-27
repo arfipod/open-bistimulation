@@ -230,4 +230,152 @@ describe('useJoyConTactileOutput', () => {
       pulse.resolve({ ok: true, events: [] });
     });
   });
+
+  it('keeps pulse ownership until the request settles and issues every later neutral cancellation', async () => {
+    let now = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const raf = installRaf();
+    const pulse = deferred<{ ok: true; events: unknown[] }>();
+    const neutral = deferred<{ ok: true; events: unknown[] }>();
+    mocks.pulseJoyCon.mockReturnValue(pulse.promise);
+    mocks.neutralJoyCon.mockReturnValue(neutral.promise);
+    const runningState = makeState();
+    const pausedState = makeState({ status: 'paused' });
+
+    const { result, rerender } = renderHook(
+      ({ state }) => useJoyConTactileOutput({ state, serverTimeOffsetMs: 0, ...BASE_OPTIONS }),
+      { initialProps: { state: runningState } },
+    );
+
+    act(() => raf.runNext());
+    now = 400;
+    act(() => raf.runNext());
+    await waitFor(() => expect(mocks.pulseJoyCon).toHaveBeenCalledTimes(1));
+
+    rerender({ state: pausedState });
+    await waitFor(() => expect(mocks.neutralJoyCon).toHaveBeenCalledTimes(1));
+
+    rerender({ state: runningState });
+    act(() => raf.runNext());
+    now = 1100;
+    act(() => raf.runNext());
+
+    await waitFor(() => expect(result.current.skippedPulseCount).toBe(1));
+    expect(mocks.pulseJoyCon).toHaveBeenCalledTimes(1);
+
+    rerender({ state: pausedState });
+    await waitFor(() => expect(mocks.neutralJoyCon).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      neutral.resolve({ ok: true, events: [] });
+      pulse.resolve({ ok: true, events: [] });
+    });
+  });
+
+  it('latches a pulse failure, neutralizes both sides, and waits for an explicit reconnect', async () => {
+    let now = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const raf = installRaf();
+    mocks.pulseJoyCon.mockRejectedValueOnce(new Error('left motor failed'));
+
+    const { result, rerender } = renderHook(
+      ({ enabled }) =>
+        useJoyConTactileOutput({
+          state: makeState(),
+          serverTimeOffsetMs: 0,
+          intensity: 'medium',
+          enabled,
+        }),
+      { initialProps: { enabled: true } },
+    );
+
+    act(() => raf.runNext());
+    now = 400;
+    act(() => raf.runNext());
+
+    await waitFor(() => expect(result.current.lastError).toBe('left motor failed'));
+    expect(mocks.neutralJoyCon).toHaveBeenCalledWith({ side: 'both' });
+    expect(mocks.pulseJoyCon).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(raf.count()).toBe(0));
+
+    rerender({ enabled: false });
+    rerender({ enabled: true });
+    await waitFor(() => expect(raf.count()).toBe(1));
+
+    now = 700;
+    act(() => raf.runNext());
+    now = 1_100;
+    act(() => raf.runNext());
+
+    await waitFor(() => expect(mocks.pulseJoyCon).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.lastError).toBeNull());
+  });
+
+  it('keeps a fault latched when an older overlapping pulse resolves afterward', async () => {
+    let now = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const raf = installRaf();
+    const olderPulse = deferred<{ ok: true; events: unknown[] }>();
+    const failingPulse = deferred<{ ok: true; events: unknown[] }>();
+    mocks.pulseJoyCon
+      .mockReturnValueOnce(olderPulse.promise)
+      .mockReturnValueOnce(failingPulse.promise);
+
+    const { result } = renderHook(() =>
+      useJoyConTactileOutput({ state: makeState(), serverTimeOffsetMs: 0, ...BASE_OPTIONS }),
+    );
+
+    act(() => raf.runNext());
+    now = 400;
+    act(() => raf.runNext());
+    now = 700;
+    act(() => raf.runNext());
+    await waitFor(() => expect(mocks.pulseJoyCon).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      failingPulse.reject(new Error('right motor failed'));
+    });
+
+    await waitFor(() => expect(result.current.lastError).toBe('right motor failed'));
+    await waitFor(() => expect(raf.count()).toBe(0));
+
+    await act(async () => {
+      olderPulse.resolve({ ok: true, events: [] });
+    });
+
+    expect(result.current.lastError).toBe('right motor failed');
+    expect(raf.count()).toBe(0);
+    expect(mocks.pulseJoyCon).toHaveBeenCalledTimes(2);
+  });
+
+  it('latches a neutral failure until tactile output is explicitly reconnected', async () => {
+    const raf = installRaf();
+    mocks.neutralJoyCon.mockRejectedValueOnce(new Error('neutral failed'));
+    const runningState = makeState();
+    const pausedState = makeState({ status: 'paused' });
+
+    const { result, rerender } = renderHook(
+      ({ state, enabled }) =>
+        useJoyConTactileOutput({
+          state,
+          serverTimeOffsetMs: 0,
+          intensity: 'medium',
+          enabled,
+        }),
+      { initialProps: { state: runningState, enabled: true } },
+    );
+
+    act(() => raf.runNext());
+    rerender({ state: pausedState, enabled: true });
+
+    await waitFor(() => expect(result.current.lastError).toBe('neutral failed'));
+    expect(mocks.neutralJoyCon).toHaveBeenCalledTimes(2);
+
+    rerender({ state: runningState, enabled: true });
+    expect(raf.count()).toBe(0);
+
+    rerender({ state: runningState, enabled: false });
+    rerender({ state: runningState, enabled: true });
+    await waitFor(() => expect(raf.count()).toBe(1));
+  });
 });

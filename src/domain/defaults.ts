@@ -6,6 +6,7 @@ export const TACTILE_INTERNAL_PAUSE_MS = 40;
 export const DEFAULT_SESSION_STATE: SessionState = {
   version: 1,
   status: 'idle',
+  roundDurationMs: null,
   startedAtMs: null,
   pausedAtMs: null,
   elapsedBeforePauseMs: 0,
